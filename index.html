@@ -104,15 +104,7 @@
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, onSnapshot, collection, setLogLevel, updateDoc, getDoc, serverTimestamp, deleteDoc, writeBatch, deleteField, query, where, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        const firebaseConfig = {
-          apiKey: "AIzaSyDHDao8IpUtUPISOLtEv9OoPuLW8Ns7ztA",
-          authDomain: "evaluation-468b4.firebaseapp.com",
-          projectId: "evaluation-468b4",
-          storageBucket: "evaluation-468b4.firebasestorage.app",
-          messagingSenderId: "1067413771670",
-          appId: "1:1067413771670:web:48d16f8f17ec14a0baf9b7",
-          measurementId: "G-8PPK4XEJCZ"
-        };
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : { apiKey: "your-api-key", authDomain: "your-auth-domain", projectId: "your-project-id" };
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-innovation-eval-app';
         
         const presenters = {
