@@ -1,0 +1,1481 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>개선과제 온라인 평가 시스템</title>
+    <!-- Chosen Palette: Calm Corporate (Tailwind Slate & Sky) -->
+    <!-- Application Structure Plan: A role-based login screen (Admin/Evaluator/Voter) directs users to appropriate views. Admins get full access including simulation and export. Evaluators access scoring tabs and can now save & logout. Voters are directed to a single '우수 발표자' tab. This RBAC simplifies the UI for each role. Automated result aggregation and manual override tabs remain for administrators/evaluator. -->
+    <!-- Visualization & Content Choices: The core visualization remains consistent. The key change is the application of role-based access control (RBAC) to the UI, hiding and showing tabs and control buttons (simulation, export) based on the user's role determined at login. A new CSV export function aggregates data from multiple sources for offline analysis. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+        .tab-button.active { border-color: #0ea5e9; color: #0ea5e9; background-color: #f0f9ff; }
+        .score-input { transition: all 0.2s ease-in-out; }
+        .score-input:focus { transform: scale(1.05); box-shadow: 0 0 0 2px #0ea5e9; }
+        .chart-container { position: relative; width: 100%; max-width: 600px; }
+        .role-selector-btn.active { background-color: #0ea5e9; color: white; }
+        .role-selector-btn:not(.active) { background-color: #f1f5f9; color: #64748b; }
+        .score-input-cell { text-align: center; }
+    </style>
+</head>
+<body class="text-slate-800">
+
+    <div id="login-container" class="flex items-center justify-center min-h-screen px-4">
+        <div class="w-full max-w-md bg-white p-8 rounded-2xl shadow-xl">
+            <h2 class="text-3xl font-bold text-center text-slate-900 mb-2">로그인</h2>
+            <p class="text-center text-slate-600 mb-6">역할을 선택하고 로그인해 주세요.</p>
+            
+            <div class="grid grid-cols-3 gap-1 mb-6 border border-slate-200 rounded-lg p-1">
+                <button id="role-evaluator" class="role-selector-btn flex-1 py-2 px-4 rounded-md text-sm font-medium">평가자</button>
+                <button id="role-voter" class="role-selector-btn flex-1 py-2 px-4 rounded-md text-sm font-medium">투표자</button>
+                <button id="role-admin" class="role-selector-btn flex-1 py-2 px-4 rounded-md text-sm font-medium">관리자</button>
+            </div>
+            <input type="hidden" id="login-role" value="evaluator">
+
+            <div id="login-error" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg relative mb-6" role="alert">
+                <span class="block sm:inline" id="login-error-message"></span>
+            </div>
+            <div class="space-y-6">
+                <div>
+                    <label for="login-id" id="login-id-label" class="block text-sm font-medium text-slate-700">성명</label>
+                    <input type="text" id="login-id" placeholder="성명 (예: 홍길동)" class="mt-1 block w-full px-4 py-2 bg-white border border-slate-300 rounded-md shadow-sm placeholder-slate-400 focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm">
+                </div>
+                <div>
+                    <label for="password" class="block text-sm font-medium text-slate-700">비밀번호</label>
+                    <input type="password" id="password" class="mt-1 block w-full px-4 py-2 bg-white border border-slate-300 rounded-md shadow-sm placeholder-slate-400 focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm">
+                </div>
+                <button id="login-btn" class="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-sky-600 hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500">
+                    로그인
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="app-container" class="hidden container mx-auto p-4 md:p-8">
+        <header class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-slate-900">2025 경영혁신 경진대회 평가 시스템</h1>
+            <p class="text-md text-slate-600 mt-2">실시간 온라인 평가</p>
+            <div class="mt-4 space-x-2">
+                <button id="simulationBtn" class="hidden bg-sky-600 text-white px-4 py-2 rounded-lg hover:bg-sky-700 transition duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500">가상 평가 시뮬레이션</button>
+                <button id="exportBtn" class="hidden bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500">스프레드시트로 저장</button>
+                <button id="resetBtn" class="hidden bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">시뮬레이션 초기화</button>
+                <button id="save-logout-btn" class="hidden bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 transition duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500">임시저장 및 로그아웃</button>
+            </div>
+            <div id="userInfo" class="mt-4 text-sm text-slate-500"></div>
+        </header>
+
+        <main class="bg-white p-6 rounded-2xl shadow-lg">
+            <div class="border-b border-slate-200 mb-6">
+                <nav class="flex flex-wrap -mb-px" id="tab-buttons">
+                    <button data-tab="6s" class="tab-button active text-sm md:text-base font-medium text-center text-slate-500 border-b-2 border-transparent px-4 py-3 hover:text-slate-700 hover:border-slate-300">6S</button>
+                    <button data-tab="six_sigma" class="tab-button text-sm md:text-base font-medium text-center text-slate-500 border-b-2 border-transparent px-4 py-3 hover:text-slate-700 hover:border-slate-300">6시그마</button>
+                    <button data-tab="rnd" class="tab-button text-sm md:text-base font-medium text-center text-slate-500 border-b-2 border-transparent px-4 py-3 hover:text-slate-700 hover:border-slate-300">R&D</button>
+                    <button data-tab="ai" class="tab-button text-sm md:text-base font-medium text-center text-slate-500 border-b-2 border-transparent px-4 py-3 hover:text-slate-700 hover:border-slate-300">AI</button>
+                    <button data-tab="results" class="tab-button text-sm md:text-base font-medium text-center text-slate-500 border-b-2 border-transparent px-4 py-3 hover:text-slate-700 hover:border-slate-300">종합 결과</button>
+                    <button data-tab="detailed_results" class="tab-button text-sm md:text-base font-medium text-center text-slate-500 border-b-2 border-transparent px-4 py-3 hover:text-slate-700 hover:border-slate-300">평가자별 상세 결과</button>
+                    <button data-tab="voter_detailed_results" class="tab-button text-sm md:text-base font-medium text-center text-slate-500 border-b-2 border-transparent px-4 py-3 hover:text-slate-700 hover:border-slate-300">투표자별 상세 결과</button>
+                    <button data-tab="final_results" class="tab-button text-sm md:text-base font-medium text-center text-slate-500 border-b-2 border-transparent px-4 py-3 hover:text-slate-700 hover:border-slate-300">최종 결과</button>
+                    <button data-tab="excellent_presenters" class="tab-button text-sm md:text-base font-medium text-center text-slate-500 border-b-2 border-transparent px-4 py-3 hover:text-slate-700 hover:border-slate-300">우수 발표자</button>
+                </nav>
+            </div>
+
+            <div id="tab-content">
+            </div>
+        </main>
+    </div>
+
+    <div id="messageModal" class="fixed inset-0 bg-gray-900 bg-opacity-60 hidden items-center justify-center z-50 transition-opacity duration-300 opacity-0">
+        <div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-md text-center transform transition-all duration-300 scale-95 opacity-0" id="modal-content">
+            <h3 class="text-xl font-bold text-slate-800 mb-4" id="modalTitle">알림</h3>
+            <p id="modalMessage" class="text-slate-600 mb-6"></p>
+            <div id="modal-buttons" class="flex justify-end gap-4">
+                 <button id="closeModalBtn" class="bg-slate-200 text-slate-800 px-6 py-2 rounded-lg hover:bg-slate-300 transition focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-400">취소</button>
+                 <button id="confirmModalBtn" class="bg-sky-600 text-white px-6 py-2 rounded-lg hover:bg-sky-700 transition focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500">확인</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, onSnapshot, collection, setLogLevel, updateDoc, getDoc, serverTimestamp, deleteDoc, writeBatch, deleteField, query, where, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+          apiKey: "AIzaSyDHDao8IpUtUPISOLtEv9OoPuLW8Ns7ztA",
+          authDomain: "evaluation-468b4.firebaseapp.com",
+          projectId: "evaluation-468b4",
+          storageBucket: "evaluation-468b4.firebasestorage.app",
+          messagingSenderId: "1067413771670",
+          appId: "1:1067413771670:web:48d16f8f17ec14a0baf9b7",
+          measurementId: "G-8PPK4XEJCZ"
+        };
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-innovation-eval-app';
+        
+        const presenters = {
+            "6s": [
+                { id: "6s-1", name: "안성규 선임" }, { id: "6s-2", name: "김효정 선임" },
+                { id: "6s-3", name: "김태성 책임" }
+            ],
+            "six_sigma": [
+                { id: "ss-1", name: "강선옥 책임" }, { id: "ss-2", name: "김광백 책임" }
+            ],
+            "rnd": [
+                { id: "rd-1", name: "김준현 책임" }, { id: "rd-2", name: "김진배 책임" }, { id: "rd-3", name: "손병길 수석" }
+            ],
+            "ai": [
+                { id: "ai-1", name: "이세돌 연구원" }, { id: "ai-2", name: "알파고 책임" }, 
+                { id: "ai-3", name: "베타고 선임" }, { id: "ai-4", name: "감마고 연구원" }
+            ]
+        };
+
+        const evaluationCriteria = {
+            "6s": [
+                { key: "strategy", name: "경영전략과의 연계성", max: 20 }, { key: "goal_setting", name: "목표 설정의 적정성", max: 10 },
+                { key: "achievement", name: "목표 달성도", max: 10 }, { key: "improvement", name: "개선후 향상도", max: 20 },
+                { key: "sustainability", name: "관리체계 실행 정도", max: 20 }, { key: "creativity", name: "창의성, 노력도", max: 20 }
+            ],
+            "six_sigma": [
+                { key: "define", name: "정의(D)", max: 15 }, { key: "measure", name: "측정(M)", max: 15 },
+                { key: "analyze", name: "분석(A)", max: 20 }, { key: "improve", name: "개선(I)", max: 25 },
+                { key: "control", name: "관리(C)", max: 5 }, { key: "best_practice", name: "Best Practice", max: 10 }, { key: "attitude", name: "태도", max: 10 }
+            ],
+            "rnd": [
+                { key: "topic", name: "주제 선정 타당성", max: 20 }, { key: "creativity", name: "개선안 창의성", max: 20 },
+                { key: "improvement", name: "개선안 향상도", max: 20 }, { key: "completeness", name: "개선안 완성도", max: 20 },
+                { key: "practicality", name: "개선안 실용성", max: 20 }
+            ],
+            "ai": [
+                { key: "topic_ai", name: "주제 선정 타당성", max: 20 }, { key: "data_usage", name: "데이터 활용 적정성", max: 20 },
+                { key: "model_creativity", name: "모델/알고리즘 창의성", max: 20 }, { key: "performance", name: "성능 및 효과성", max: 20 },
+                { key: "scalability", name: "확장성 및 운영성", max: 20 }
+            ]
+        };
+        
+        const categoryDisplayNames = { "6s": "6S", "six_sigma": "6시그마", "rnd": "R&D", "ai": "AI" };
+        
+        const introTexts = {
+            "6s": "이 섹션에서는 **6S 부문** 발표자들의 과제를 평가합니다. 각 평가 항목의 배점을 참고하여 점수를 입력해 주세요. 점수는 실시간으로 저장 및 집계됩니다.",
+            "six_sigma": "이 섹션에서는 **6시그마 부문** 발표자들의 과제를 평가합니다. DMAIC 단계별 평가 항목을 기준으로 점수를 입력해 주세요. 모든 점수는 자동으로 저장됩니다.",
+            "rnd": "이 섹션에서는 **R&D 부문** 발표자들의 과제를 평가합니다. 주제 선정부터 실용성까지 각 항목을 신중하게 평가해 주시기 바랍니다.",
+            "ai": "이 섹션에서는 **AI 부문** 발표자들의 과제를 평가합니다. 데이터 활용, 모델의 창의성 및 성능을 중심으로 평가를 진행해 주세요.",
+            "results": "이곳에서는 모든 평가자들의 점수를 합산한 **최종 결과**를 부문별로 확인할 수 있습니다. 평균 점수와 투표 점수를 기준으로 순위가 매겨지며, 시각적인 비교를 위해 차트가 함께 제공됩니다.",
+            "detailed_results": "이곳에서는 각 평가자가 발표자별, 항목별로 부여한 모든 점수를 상세하게 확인할 수 있습니다. 이를 통해 평가자 간의 점수 편차를 분석하고, 평가의 공정성을 검토할 수 있습니다.",
+            "voter_detailed_results": "이곳에서는 각 투표자가 부문별로 어떤 발표자에게 투표했는지 상세 내역을 확인할 수 있습니다. 이를 통해 투표 결과의 투명성을 확보하고 전체적인 투표 경향을 분석할 수 있습니다.",
+            "final_results": "이곳에서는 집계된 **최종 결과**를 확인하고, 필요한 경우 직접 수정할 수 있습니다. 발표자 순서나 훈격 등을 드롭다운 메뉴와 직접 입력을 통해 조정하고 최종 결과를 확정하세요.",
+            "excellent_presenters": "이곳에서는 행사에 참여하신 여러분이 발표 내용과 발표자 태도 등을 종합적으로 판단하여 가장 우수하다고 생각하는 발표자를 체크박스를 사용하여 선택합니다. 각 부문별로 1개만 선택해주세요."
+        };
+
+        let db, auth;
+        let loginId = null; 
+        let currentUserRole = 'evaluator';
+        let allScores = {}; 
+        let activeTab = "6s";
+        let submissionStatus = {};
+        let excellentPresenterSelections = {};
+        let firebaseInitPromise = null;
+        let finalResultsData = null;
+        let confirmAction = null;
+
+        function debounce(func, delay) {
+            let timeout;
+            return function(...args) {
+                const context = this;
+                clearTimeout(timeout);
+                timeout = setTimeout(() => func.apply(context, args), delay);
+            };
+        }
+        
+        function showMessage(message, isConfirmation = false, onConfirm = null) {
+            const modal = document.getElementById('messageModal');
+            const modalContent = document.getElementById('modal-content');
+            const modalTitle = document.getElementById('modalTitle');
+            const modalMessage = document.getElementById('modalMessage');
+            const confirmBtn = document.getElementById('confirmModalBtn');
+            const closeBtn = document.getElementById('closeModalBtn');
+            
+            modalTitle.textContent = isConfirmation ? '확인' : '알림';
+            modalMessage.textContent = message;
+            
+            if (isConfirmation) {
+                confirmBtn.classList.remove('hidden');
+                closeBtn.textContent = '취소';
+                confirmAction = onConfirm;
+            } else {
+                confirmBtn.classList.add('hidden');
+                closeBtn.textContent = '확인';
+                confirmAction = null;
+            }
+
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                modalContent.classList.remove('scale-95', 'opacity-0');
+            }, 10);
+        }
+
+        function hideMessage() {
+            const modal = document.getElementById('messageModal');
+            const modalContent = document.getElementById('modal-content');
+            modal.classList.add('opacity-0');
+            modalContent.classList.add('scale-95', 'opacity-0');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            }, 300);
+        }
+
+        function initializeFirebaseOnce() {
+            if (firebaseInitPromise) {
+                return firebaseInitPromise;
+            }
+            firebaseInitPromise = new Promise(async (resolve, reject) => {
+                try {
+                    const app = initializeApp(firebaseConfig);
+                    db = getFirestore(app);
+                    auth = getAuth(app);
+                    setLogLevel('debug');
+                    
+                    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+                         unsubscribe();
+                        if (user) {
+                            resolve();
+                        } else {
+                            try {
+                                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                                    await signInWithCustomToken(auth, __initial_auth_token);
+                                } else {
+                                    await signInAnonymously(auth);
+                                }
+                                resolve();
+                            } catch (error) {
+                                console.error("Sign-in failed:", error);
+                                reject(error);
+                            }
+                        }
+                    });
+                } catch (error) {
+                    console.error("Firebase initialization failed:", error);
+                    reject(error);
+                }
+            });
+            return firebaseInitPromise;
+        }
+
+        function setupSubmissionListener() {
+            if (!loginId) return;
+            const submissionDocRef = doc(db, `/artifacts/${appId}/public/data/submissions`, loginId);
+            onSnapshot(submissionDocRef, (docSnap) => {
+                submissionStatus = docSnap.exists() ? docSnap.data() : {};
+                if (document.getElementById('app-container').offsetParent !== null) {
+                    render();
+                }
+            });
+        }
+        
+        function setupExcellentPresenterListener() {
+            const collectionPath = `/artifacts/${appId}/public/data/excellent_presenter_selections`;
+            const selectionsCollection = collection(db, collectionPath);
+            onSnapshot(selectionsCollection, (snapshot) => {
+                let changed = false;
+                 snapshot.docChanges().forEach((change) => {
+                    changed = true;
+                    if (change.type === "added" || change.type === "modified") {
+                         excellentPresenterSelections[change.doc.id] = change.doc.data();
+                    } else if (change.type === "removed") {
+                        delete excellentPresenterSelections[change.doc.id];
+                    }
+                });
+                if (changed && document.getElementById('app-container').offsetParent !== null) {
+                    finalResultsData = null; 
+                    render();
+                }
+            });
+        }
+
+        function setupRealtimeListeners() {
+            const collectionPath = `/artifacts/${appId}/public/data/scores`;
+            const scoresCollection = collection(db, collectionPath);
+            
+            onSnapshot(scoresCollection, (snapshot) => {
+                let shouldRerender = false;
+                snapshot.docChanges().forEach((change) => {
+                    shouldRerender = true;
+                    if (change.type === "added" || change.type === "modified") {
+                         const data = change.doc.data();
+                        if (data && !data.scores) {
+                            data.scores = {};
+                        }
+                        allScores[change.doc.id] = data;
+                    }
+                    if (change.type === "removed") { delete allScores[change.doc.id]; }
+                });
+                if (shouldRerender && document.getElementById('app-container').offsetParent !== null) {
+                    finalResultsData = null; 
+                    if (['results', 'detailed_results', 'final_results', 'excellent_presenters', 'voter_detailed_results'].includes(activeTab)) {
+                        render();
+                    } else {
+                        renderColumnTotals(activeTab);
+                    }
+                }
+            }, (error) => {
+                console.error("Snapshot listener error:", error);
+            });
+        }
+        
+        async function _submitCategory(categoryKey) {
+            const submissionDocRef = doc(db, `/artifacts/${appId}/public/data/submissions`, loginId);
+            try {
+                await setDoc(submissionDocRef, { 
+                    [categoryKey]: true,
+                    evaluatorName: loginId
+                 }, { merge: true });
+                showMessage(`'${categoryDisplayNames[categoryKey]}' 부문 평가를 최종 제출했습니다. 이제 수정할 수 없습니다.`);
+            } catch (error) {
+                console.error("Error submitting category:", error);
+                showMessage("제출 중 오류가 발생했습니다. 다시 시도해 주세요.");
+            }
+        }
+
+        async function submitCategory(categoryKey) {
+            if (!loginId) return;
+
+            let allScoresFilled = true;
+            const categoryPresenters = presenters[categoryKey];
+            const criteria = evaluationCriteria[categoryKey];
+
+            for (const presenter of categoryPresenters) {
+                for (const criterion of criteria) {
+                    const score = allScores[presenter.id]?.scores?.[loginId]?.[criterion.key];
+                    if (score === undefined || score === null || score === '') {
+                        allScoresFilled = false;
+                        break;
+                    }
+                }
+                if (!allScoresFilled) break;
+            }
+
+            if (!allScoresFilled) {
+                showMessage(`'${categoryDisplayNames[categoryKey]}' 부문의 모든 항목을 평가해야 제출할 수 있습니다.`);
+                return;
+            }
+
+            showMessage('최종 제출하시겠습니까? 제출 후에는 수정할 수 없습니다.', true, () => _submitCategory(categoryKey));
+        }
+        
+        async function updateScore(presenterId, criterionKey, score) {
+            if (!loginId) return;
+            const scoreValue = score === '' ? null : parseInt(score, 10);
+            if (score !== '' && isNaN(scoreValue)) return;
+            
+            const docRef = doc(db, `/artifacts/${appId}/public/data/scores/${presenterId}`);
+            
+            const scoreUpdatePayload = {
+                [`scores.${loginId}.${criterionKey}`]: scoreValue
+            };
+
+            try {
+                const category = Object.keys(presenters).find(cat => presenters[cat].some(p => p.id === presenterId));
+                if (!category) return;
+                const baseData = {
+                    id: presenterId,
+                    name: presenters[category].find(p => p.id === presenterId).name,
+                    category: category
+                };
+                await setDoc(docRef, baseData, { merge: true });
+                await updateDoc(docRef, scoreUpdatePayload);
+            } catch (error) {
+                console.error("Error updating score: ", error);
+            }
+        }
+        
+        async function saveSimulatedExcellentSelection(simulatedUserId, category, presenterName) {
+            if (!simulatedUserId || !category || !presenterName) return;
+            const docRef = doc(db, `/artifacts/${appId}/public/data/excellent_presenter_selections`, simulatedUserId);
+            
+            const baseData = { evaluatorName: simulatedUserId };
+            const voteData = { [`selections.${category}`]: presenterName };
+
+            try {
+                await setDoc(docRef, baseData, { merge: true });
+                await updateDoc(docRef, voteData);
+            } catch (error) {
+                console.error("Error saving simulated excellent presenter selection:", error);
+            }
+        }
+
+        async function updateSimulatedScore(simulatedUserId, presenterId, criterionKey, score) {
+            const docRef = doc(db, `/artifacts/${appId}/public/data/scores/${presenterId}`);
+            const scoreUpdatePayload = {
+                [`scores.${simulatedUserId}.${criterionKey}`]: parseInt(score, 10)
+            };
+             try {
+                const category = Object.keys(presenters).find(cat => presenters[cat].some(p => p.id === presenterId));
+                if (!category) return;
+                const baseData = {
+                    id: presenterId,
+                    name: presenters[category].find(p => p.id === presenterId).name,
+                    category: category
+                };
+                await setDoc(docRef, baseData, { merge: true });
+                await updateDoc(docRef, scoreUpdatePayload);
+            } catch (error) {
+                console.error(`Simulation score update failed for ${presenterId}:`, error);
+            }
+        }
+
+        async function runSimulation() {
+            const btn = document.getElementById('simulationBtn');
+            btn.disabled = true;
+            btn.textContent = '시뮬레이션 진행 중...';
+
+            const simulatedEvaluatorIds = Array.from({ length: 15 }, () => `sim-evaluator-${crypto.randomUUID()}`);
+            const scorePromises = [];
+            for (const userId of simulatedEvaluatorIds) {
+                for (const category in presenters) {
+                    for (const presenter of presenters[category]) {
+                        for (const criterion of evaluationCriteria[category]) {
+                            const randomScore = Math.floor(Math.random() * (criterion.max * 0.8) + (criterion.max * 0.2));
+                            scorePromises.push(updateSimulatedScore(userId, presenter.id, criterion.key, randomScore));
+                        }
+                    }
+                }
+            }
+
+            const simulatedVoterIds = Array.from({ length: 200 }, () => `sim-voter-${crypto.randomUUID()}`);
+            const votePromises = [];
+            for (const userId of simulatedVoterIds) {
+                for (const category in presenters) {
+                    const categoryPresenters = presenters[category];
+                    const randomIndex = Math.floor(Math.random() * categoryPresenters.length);
+                    const selectedPresenter = categoryPresenters[randomIndex];
+                    votePromises.push(saveSimulatedExcellentSelection(userId, category, selectedPresenter.name));
+                }
+            }
+
+            await Promise.all([...scorePromises, ...votePromises]);
+
+            btn.textContent = '시뮬레이션 완료';
+            showMessage('15명의 가상 평가자 점수 입력과 200명의 가상 투표자 투표를 완료했습니다. 결과를 확인하세요.');
+        }
+
+        async function resetSimulationData() {
+            showMessage('모든 시뮬레이션 데이터를 초기화하시겠습니까? 이 작업은 되돌릴 수 없습니다.', true, async () => {
+                const btn = document.getElementById('resetBtn');
+                const simBtn = document.getElementById('simulationBtn');
+                btn.disabled = true;
+                simBtn.disabled = true;
+                btn.textContent = '초기화 중...';
+                
+                try {
+                    const batch = writeBatch(db);
+
+                    const scoresCollectionRef = collection(db, `/artifacts/${appId}/public/data/scores`);
+                    const scoresSnapshot = await getDocs(scoresCollectionRef);
+                    scoresSnapshot.forEach(docSnap => {
+                        const data = docSnap.data();
+                        if (data.scores) {
+                            let needsUpdate = false;
+                            const updates = {};
+                            Object.keys(data.scores).forEach(key => {
+                                if (key.startsWith('sim-evaluator-')) {
+                                    updates[`scores.${key}`] = deleteField();
+                                    needsUpdate = true;
+                                }
+                            });
+                            if (needsUpdate) {
+                                batch.update(docSnap.ref, updates);
+                            }
+                        }
+                    });
+
+                    const selectionsCollectionRef = collection(db, `/artifacts/${appId}/public/data/excellent_presenter_selections`);
+                    const selectionsSnapshot = await getDocs(selectionsCollectionRef);
+                    selectionsSnapshot.forEach(docSnap => {
+                        if (docSnap.id.startsWith('sim-voter-')) {
+                            batch.delete(docSnap.ref);
+                        }
+                    });
+
+                    await batch.commit();
+
+                    showMessage('시뮬레이션 데이터가 성공적으로 초기화되었습니다.');
+
+                } catch (error) {
+                    console.error("Error resetting simulation data:", error);
+                    showMessage('데이터 초기화 중 오류가 발생했습니다.');
+                } finally {
+                    btn.disabled = false;
+                    simBtn.disabled = false;
+                    btn.textContent = '시뮬레이션 초기화';
+                }
+            });
+        }
+        
+        function render() {
+            const tabContent = document.getElementById('tab-content');
+            if(!tabContent) return;
+            tabContent.innerHTML = ''; 
+
+            updateUIVisibility();
+
+            if (activeTab === 'results') {
+                tabContent.innerHTML = renderResults();
+                setTimeout(renderAllCharts, 0);
+            } else if (activeTab === 'detailed_results') {
+                tabContent.innerHTML = renderDetailedResults();
+            } else if (activeTab === 'voter_detailed_results') {
+                 tabContent.innerHTML = renderVoterDetailedResults();
+            } else if (activeTab === 'final_results') {
+                tabContent.innerHTML = renderFinalResults();
+                setTimeout(renderFinalResultsCharts, 0);
+            } else if (activeTab === 'excellent_presenters') {
+                tabContent.innerHTML = renderExcellentPresenters();
+            }
+            else {
+                tabContent.innerHTML = renderEvaluationTable(activeTab);
+            }
+        }
+        
+        function renderColumnTotals(categoryKey) {
+            const table = document.querySelector('#tab-content table');
+            if (!table || !table.tfoot) return;
+            
+            const criteria = evaluationCriteria[categoryKey];
+            const categoryPresenters = presenters[categoryKey];
+            
+            const myTotalRow = table.tfoot.rows[0];
+            const avgTotalRow = table.tfoot.rows[1];
+
+            categoryPresenters.forEach((p, index) => {
+                const cellIndex = index + 2;
+                
+                let myTotal = 0;
+                if (allScores[p.id]?.scores?.[loginId]) {
+                    myTotal = criteria.reduce((sum, c) => sum + (allScores[p.id].scores[loginId][c.key] || 0), 0);
+                }
+                if (myTotalRow.cells[cellIndex]) {
+                    myTotalRow.cells[cellIndex].textContent = myTotal;
+                }
+
+                const presenterScores = allScores[p.id]?.scores;
+                let totalAverage = 0;
+                if (presenterScores) {
+                    const evaluatorIds = Object.keys(presenterScores);
+                    if (evaluatorIds.length > 0) {
+                        const sumOfScores = evaluatorIds.reduce((total, evalId) => {
+                           const evalTotal = criteria.reduce((sum, c) => sum + (presenterScores[evalId]?.[c.key] || 0), 0);
+                           return total + evalTotal;
+                        }, 0);
+                        totalAverage = (sumOfScores / evaluatorIds.length).toFixed(2);
+                    }
+                }
+                 if (avgTotalRow.cells[cellIndex]) {
+                    avgTotalRow.cells[cellIndex].textContent = totalAverage;
+                }
+            });
+        }
+
+        function renderEvaluationTable(categoryKey) {
+            const isSubmitted = submissionStatus[categoryKey] === true;
+            const criteria = evaluationCriteria[categoryKey];
+            const categoryPresenters = presenters[categoryKey];
+            
+            let introHTML = `<div class="p-4 mb-4 bg-sky-50 border border-sky-200 rounded-lg flex flex-col md:flex-row justify-between items-start md:items-center">
+                                <p class="text-slate-700 mb-3 md:mb-0 md:mr-4 flex-grow">${introTexts[categoryKey]}</p>
+                                <button data-category="${categoryKey}" class="submit-btn w-full md:w-auto flex-shrink-0 bg-teal-600 text-white px-4 py-2 rounded-lg hover:bg-teal-700 transition focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 disabled:bg-slate-400 disabled:cursor-not-allowed" ${isSubmitted ? 'disabled' : ''}>
+                                    ${isSubmitted ? '제출 완료' : '최종 제출'}
+                                </button>
+                             </div>`;
+
+            let tableHTML = `<div class="overflow-x-auto"><table class="w-full text-sm text-left text-slate-500">`;
+            tableHTML += `<thead class="text-xs text-slate-700 uppercase bg-slate-100"><tr>`;
+            tableHTML += `<th scope="col" class="px-6 py-3 rounded-tl-lg">평가항목</th>`;
+            tableHTML += `<th scope="col" class="px-6 py-3">배점</th>`;
+            categoryPresenters.forEach(p => { tableHTML += `<th scope="col" class="px-6 py-3 text-center">${p.name}</th>`; });
+            tableHTML += `<th scope="col" class="px-6 py-3 rounded-tr-lg"></th></tr></thead>`;
+            tableHTML += `<tbody>`;
+            criteria.forEach(c => {
+                tableHTML += `<tr class="bg-white border-b">`;
+                tableHTML += `<th scope="row" class="px-6 py-4 font-medium text-slate-900 whitespace-nowrap">${c.name}</th>`;
+                tableHTML += `<td class="px-6 py-4 text-center">${c.max}</td>`;
+                categoryPresenters.forEach(p => {
+                    const score = allScores[p.id]?.scores?.[loginId]?.[c.key];
+                    const myScore = (score === null || score === undefined) ? '' : score;
+                    tableHTML += `<td class="px-6 py-4 score-input-cell"><input type="number" max="${c.max}" min="0" value="${myScore}" data-id="${p.id}" data-key="${c.key}" class="score-input w-20 text-center p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500" ${isSubmitted ? 'disabled' : ''}></td>`;
+                });
+                tableHTML += `<td></td></tr>`;
+            });
+            tableHTML += `</tbody>`;
+            tableHTML += `<tfoot class="font-bold text-slate-900">`;
+            tableHTML += `<tr class="border-t-2"><th scope="row" class="px-6 py-4">내 점수 합계</th><td></td>`;
+            categoryPresenters.forEach(p => {
+                const myTotal = criteria.reduce((sum, c) => sum + (allScores[p.id]?.scores?.[loginId]?.[c.key] || 0), 0);
+                tableHTML += `<td class="px-6 py-4 text-center text-lg text-sky-600">${myTotal}</td>`;
+            });
+            tableHTML += `<td></td></tr>`;
+            tableHTML += `<tr class="border-t"><th scope="row" class="px-6 py-4">평균 점수</th><td></td>`;
+            categoryPresenters.forEach(p => {
+                const presenterScores = allScores[p.id]?.scores;
+                let totalAverage = 0;
+                if(presenterScores) {
+                    const evaluatorIds = Object.keys(presenterScores);
+                    if(evaluatorIds.length > 0) {
+                        const sumOfScores = evaluatorIds.reduce((total, evalId) => total + criteria.reduce((sum, c) => sum + (presenterScores[evalId]?.[c.key] || 0), 0), 0);
+                        totalAverage = (sumOfScores / evaluatorIds.length).toFixed(2);
+                    }
+                }
+                tableHTML += `<td class="px-6 py-4 text-center text-lg text-teal-600">${totalAverage}</td>`;
+            });
+            tableHTML += `<td></td></tr>`;
+            tableHTML += `</tfoot></table></div>`;
+            return introHTML + tableHTML;
+        }
+        
+        function getUniqueEvaluators() {
+            const evaluatorSet = new Set();
+            for (const presenterId in allScores) {
+                if (allScores[presenterId].scores) {
+                    Object.keys(allScores[presenterId].scores).forEach(evaluatorId => {
+                        evaluatorSet.add(evaluatorId);
+                    });
+                }
+            }
+            return Array.from(evaluatorSet).sort();
+        }
+
+        function renderDetailedResults() {
+            const evaluators = getUniqueEvaluators().filter(id => !id.startsWith('sim-voter-'));
+            let html = `<div class="p-4 mb-6 bg-sky-50 border border-sky-200 rounded-lg text-slate-700"><p>${introTexts.detailed_results}</p></div>`;
+
+            html += `<div class="overflow-x-auto bg-white rounded-lg shadow"><table class="w-full text-sm text-left text-slate-500">`;
+            
+            let headerHtml = `<thead class="text-xs text-slate-700 uppercase bg-slate-100">`;
+            headerHtml += `<tr><th class="px-6 py-4 sticky left-0 bg-slate-100 z-10" rowspan="2">평가자</th>`;
+            
+            Object.keys(presenters).forEach(category => {
+                headerHtml += `<th class="px-6 py-3 text-center" colspan="${presenters[category].length}">${categoryDisplayNames[category]}</th>`;
+            });
+            headerHtml += `</tr><tr>`;
+            Object.keys(presenters).forEach(category => {
+                presenters[category].forEach(presenter => {
+                    headerHtml += `<th class="px-4 py-3 text-center font-medium">${presenter.name}</th>`;
+                });
+            });
+            headerHtml += `</tr></thead>`;
+
+            let bodyHtml = `<tbody>`;
+            bodyHtml += `<tr class="font-bold text-slate-900 bg-slate-50 border-b-2"><td class="px-6 py-4 sticky left-0 bg-slate-50 z-10">평균점수</td>`;
+            Object.keys(presenters).forEach(category => {
+                 presenters[category].forEach(presenter => {
+                    const presenterScores = allScores[presenter.id]?.scores;
+                    let averageScore = 0;
+                    if (presenterScores) {
+                        const evalIds = Object.keys(presenterScores).filter(id => !id.startsWith('sim-voter-'));
+                        if (evalIds.length > 0) {
+                            const totalSum = evalIds.reduce((sum, evalId) => {
+                                const currentEvalScore = evaluationCriteria[category].reduce((s, c) => s + (presenterScores[evalId]?.[c.key] || 0), 0);
+                                return sum + currentEvalScore;
+                            }, 0);
+                            averageScore = (totalSum / evalIds.length).toFixed(2);
+                        }
+                    }
+                    bodyHtml += `<td class="px-6 py-4 text-center text-teal-600">${averageScore || '0.00'}</td>`;
+                });
+            });
+            bodyHtml += `</tr>`;
+
+
+            evaluators.forEach(evaluator => {
+                bodyHtml += `<tr class="bg-white border-b"><td class="px-6 py-4 font-medium text-slate-900 sticky left-0 bg-white z-10">${evaluator}</td>`;
+                Object.keys(presenters).forEach(category => {
+                    presenters[category].forEach(presenter => {
+                        let totalScore = 0;
+                        const criteria = evaluationCriteria[category];
+                        const scores = allScores[presenter.id]?.scores?.[evaluator];
+                        if (scores) {
+                            totalScore = criteria.reduce((sum, c) => sum + (scores[c.key] || 0), 0);
+                        }
+                        bodyHtml += `<td class="px-6 py-4 text-center">${totalScore || '-'}</td>`;
+                    });
+                });
+                bodyHtml += `</tr>`;
+            });
+            bodyHtml += `</tbody>`;
+
+            html += headerHtml + bodyHtml + `</table></div>`;
+            return html;
+        }
+
+        function renderVoterDetailedResults() {
+            const voters = Object.keys(excellentPresenterSelections).sort();
+            let html = `<div class="p-4 mb-6 bg-sky-50 border border-sky-200 rounded-lg text-slate-700"><p>${introTexts.voter_detailed_results}</p></div>`;
+
+            html += `<div class="overflow-x-auto bg-white rounded-lg shadow"><table class="w-full text-sm text-left text-slate-500">`;
+            
+            let headerHtml = `<thead class="text-xs text-slate-700 uppercase bg-slate-100">`;
+            headerHtml += `<tr><th class="px-6 py-4 sticky left-0 bg-slate-100 z-10" rowspan="2">투표자</th>`;
+            Object.keys(presenters).forEach(category => {
+                headerHtml += `<th class="px-6 py-3 text-center" colspan="${presenters[category].length}">${categoryDisplayNames[category]}</th>`;
+            });
+            headerHtml += `</tr><tr>`;
+            Object.keys(presenters).forEach(category => {
+                presenters[category].forEach(presenter => {
+                    headerHtml += `<th class="px-4 py-3 text-center font-medium">${presenter.name}</th>`;
+                });
+            });
+            headerHtml += `</tr></thead>`;
+
+            let bodyHtml = `<tbody>`;
+
+            const voteCounts = calculateVoteCounts();
+            const voteScores = calculateVoteScores();
+
+            bodyHtml += `<tr class="bg-slate-50 border-b font-semibold text-slate-800"><td class="px-6 py-4 sticky left-0 bg-slate-50 z-10">투표건수</td>`;
+            Object.keys(presenters).forEach(category => {
+                presenters[category].forEach(presenter => {
+                    const count = voteCounts[category][presenter.name] || 0;
+                    bodyHtml += `<td class="px-6 py-4 text-center">${count}</td>`;
+                });
+            });
+            bodyHtml += `</tr>`;
+            
+            bodyHtml += `<tr class="bg-slate-100 border-b font-bold text-blue-600"><td class="px-6 py-4 sticky left-0 bg-slate-100 z-10">투표점수</td>`;
+             Object.keys(presenters).forEach(category => {
+                presenters[category].forEach(presenter => {
+                    const score = voteScores[category][presenter.name] || 0;
+                    bodyHtml += `<td class="px-6 py-4 text-center">${score}</td>`;
+                });
+            });
+            bodyHtml += `</tr>`;
+
+
+            voters.forEach(voterId => {
+                const selectionData = excellentPresenterSelections[voterId];
+                if (!selectionData || !selectionData.selections) return;
+                
+                bodyHtml += `<tr class="bg-white border-b"><td class="px-6 py-4 font-medium text-slate-900 sticky left-0 bg-white z-10">${voterId}</td>`;
+                Object.keys(presenters).forEach(category => {
+                    presenters[category].forEach(presenter => {
+                        const selectedPresenter = selectionData.selections[category];
+                        bodyHtml += `<td class="px-6 py-4 text-center">${selectedPresenter === presenter.name ? '✔' : ''}</td>`;
+                    });
+                });
+                bodyHtml += `</tr>`;
+            });
+            bodyHtml += `</tbody>`;
+
+            html += headerHtml + bodyHtml + `</table></div>`;
+            return html;
+        }
+        
+        function calculateVoteCounts() {
+            const voteCounts = {};
+            Object.keys(presenters).forEach(category => {
+                voteCounts[category] = {};
+                presenters[category].forEach(p => {
+                    voteCounts[category][p.name] = 0;
+                });
+            });
+
+            Object.values(excellentPresenterSelections).forEach(selectionDoc => {
+                if (selectionDoc.selections) {
+                    Object.entries(selectionDoc.selections).forEach(([category, presenterName]) => {
+                        if (presenterName && voteCounts[category] && voteCounts[category][presenterName] !== undefined) {
+                            voteCounts[category][presenterName]++;
+                        }
+                    });
+                }
+            });
+            return voteCounts;
+        }
+
+        function calculateVoteScores() {
+            const voteCounts = calculateVoteCounts();
+            const voteScores = {};
+            const scoreMap = [10, 7, 4, 1];
+            Object.keys(presenters).forEach(category => {
+                voteScores[category] = {};
+                const sortedByVotes = Object.entries(voteCounts[category])
+                    .map(([name, count]) => ({ name, count }))
+                    .sort((a, b) => b.count - a.count);
+
+                sortedByVotes.forEach((p, index) => {
+                    voteScores[category][p.name] = (p.count > 0 && index < scoreMap.length) ? scoreMap[index] : 0;
+                });
+            });
+            return voteScores;
+        }
+
+        function calculateResults() {
+            const voteScoresByCategory = calculateVoteScores();
+            let results = {};
+            Object.keys(presenters).forEach(category => {
+                results[category] = presenters[category].map(p => {
+                    const presenterData = allScores[p.id];
+                    let averageScore = 0;
+                    if (presenterData && presenterData.scores) {
+                        const evaluatorIds = Object.keys(presenterData.scores).filter(id => !id.startsWith('sim-voter-'));
+                        if (evaluatorIds.length > 0) {
+                            const totalScore = evaluatorIds.reduce((sum, evalId) => sum + (evaluationCriteria[category] || []).reduce((s, c) => s + (presenterData.scores[evalId]?.[c.key] || 0), 0), 0);
+                            averageScore = totalScore / evaluatorIds.length;
+                        }
+                    }
+                    const voteScore = voteScoresByCategory[category]?.[p.name] || 0;
+                    const totalScore = averageScore + voteScore;
+                    return { ...p, score: averageScore, voteScore, totalScore };
+                }).sort((a, b) => b.totalScore - a.totalScore);
+                
+                results[category].forEach((p, index) => {
+                    p.award = '-';
+                    if (p.totalScore > 0) {
+                        if (index === 0) {
+                            p.award = '최우수';
+                        } else if (index === 1) {
+                            p.award = '우수';
+                        } else if (category === 'ai') {
+                            if (index === 2 || index === 3) {
+                                p.award = '장려';
+                            }
+                        } else if (index === 2) {
+                            p.award = '장려';
+                        }
+                    }
+                });
+            });
+            return results;
+        }
+
+        function renderResults() {
+            let introHTML = `<div class="p-4 mb-6 bg-sky-50 border border-sky-200 rounded-lg text-slate-700"><p>${introTexts.results}</p></div>`;
+            let contentHTML = `<div class="grid grid-cols-1 lg:grid-cols-2 gap-8">`;
+            const results = calculateResults();
+            
+            contentHTML += `<div><h2 class="text-2xl font-bold mb-4 text-slate-800">부문별 훈격</h2><div class="overflow-x-auto bg-white rounded-lg shadow"><table class="w-full text-sm text-left text-slate-500">`;
+            contentHTML += `<thead class="text-xs text-slate-700 uppercase bg-slate-100"><tr><th class="px-6 py-3">부문</th><th class="px-6 py-3">발표자</th><th class="px-6 py-3">평균점수</th><th class="px-6 py-3">투표점수</th><th class="px-6 py-3">종합점수</th><th class="px-6 py-3">훈격</th></tr></thead><tbody>`;
+            Object.keys(results).forEach(category => {
+                results[category].forEach((p, index) => {
+                    contentHTML += `<tr class="bg-white border-b">
+                                ${index === 0 ? `<td class="px-6 py-4 font-semibold" rowspan="${results[category].length}">${categoryDisplayNames[category] || category}</td>` : ''}
+                                <td class="px-6 py-4 font-medium text-slate-900">${p.name}</td>
+                                <td class="px-6 py-4">${p.score.toFixed(2)}</td>
+                                <td class="px-6 py-4">${p.voteScore}</td>
+                                <td class="px-6 py-4 font-bold text-blue-600">${p.totalScore.toFixed(2)}</td>
+                                <td class="px-6 py-4 font-bold ${p.award === '최우수' ? 'text-amber-500' : p.award === '우수' ? 'text-sky-500' : 'text-slate-600'}">${p.award}</td></tr>`;
+                });
+            });
+            contentHTML += `</tbody></table></div></div>`;
+
+            contentHTML += `<div><h2 class="text-2xl font-bold mb-4 text-slate-800">부문별 점수 차트</h2><div class="space-y-8">`;
+            Object.keys(presenters).forEach(category => {
+                const chartHeight = presenters[category].length * 40 + 40;
+                contentHTML += `<div><h3 class="font-semibold mb-2">${categoryDisplayNames[category] || category} 종합점수</h3><div class="chart-container mx-auto" style="height:${chartHeight}px"><canvas id="${category}-chart"></canvas></div></div>`;
+            });
+            contentHTML += `</div></div></div>`;
+            return introHTML + contentHTML;
+        }
+
+        function renderAllCharts() {
+            const results = calculateResults();
+            Object.keys(results).forEach(category => {
+                const ctx = document.getElementById(`${category}-chart`);
+                if (ctx) {
+                    const existingChart = Chart.getChart(ctx);
+                    if (existingChart) {
+                        existingChart.destroy();
+                    }
+                    const sortedResults = [...results[category]].sort((a,b) => a.totalScore - b.totalScore);
+                    new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: sortedResults.map(p => p.name),
+                            datasets: [
+                                {
+                                    label: '평균점수',
+                                    data: sortedResults.map(p => p.score.toFixed(2)),
+                                    backgroundColor: 'rgba(56, 189, 248, 0.8)',
+                                    borderColor: 'rgba(14, 165, 233, 1)',
+                                    borderWidth: 1
+                                },
+                                {
+                                    label: '투표점수',
+                                    data: sortedResults.map(p => p.voteScore),
+                                     backgroundColor: 'rgba(16, 185, 129, 0.8)',
+                                    borderColor: 'rgba(5, 150, 105, 1)',
+                                    borderWidth: 1
+                                }
+                            ]
+                        },
+                        options: {
+                            indexAxis: 'y',
+                            scales: { 
+                                x: { stacked: true, beginAtZero: true, max: 110 },
+                                y: { stacked: true }
+                            },
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: { 
+                                legend: { display: true, position: 'top' } 
+                            }
+                        }
+                    });
+                }
+            });
+        }
+        
+        function initializeFinalResultsData() {
+            if (!finalResultsData) {
+                finalResultsData = JSON.parse(JSON.stringify(calculateResults()));
+            }
+        }
+
+        function renderFinalResults() {
+            initializeFinalResultsData();
+            let introHTML = `<div class="p-4 mb-6 bg-amber-50 border border-amber-200 rounded-lg text-slate-700"><p>${introTexts.final_results}</p></div>`;
+            let contentHTML = `<div class="grid grid-cols-1 lg:grid-cols-2 gap-8">`;
+            
+            contentHTML += `<div><h2 class="text-2xl font-bold mb-4 text-slate-800">부문별 훈격 (수정 가능)</h2><div class="overflow-x-auto bg-white rounded-lg shadow"><table class="w-full text-sm text-left text-slate-500">`;
+            contentHTML += `<thead class="text-xs text-slate-700 uppercase bg-slate-100"><tr><th class="px-6 py-3">부문</th><th class="px-6 py-3">발표자</th><th class="px-6 py-3">평균점수</th><th class="px-6 py-3">투표점수</th><th class="px-6 py-3">종합점수</th><th class="px-6 py-3">훈격</th></tr></thead><tbody>`;
+
+            Object.keys(finalResultsData).forEach(category => {
+                finalResultsData[category].forEach((p, index) => {
+                    const presenterOptions = presenters[category]
+                        .map(option => `<option value="${option.id}" ${option.id === p.id ? 'selected' : ''}>${option.name}</option>`)
+                        .join('');
+                    contentHTML += `<tr class="bg-white border-b" data-category="${category}" data-index="${index}">
+                                ${index === 0 ? `<td class="px-6 py-4 font-semibold" rowspan="${finalResultsData[category].length}">${categoryDisplayNames[category]}</td>` : ''}
+                                <td class="px-6 py-4">
+                                    <select class="final-presenter-select bg-white border border-slate-300 rounded-md p-1 w-full">
+                                        ${presenterOptions}
+                                    </select>
+                                </td>
+                                <td class="px-6 py-4 final-score-cell" contenteditable="true">${p.score.toFixed(2)}</td>
+                                <td class="px-6 py-4 final-vote-score-cell" contenteditable="true">${p.voteScore}</td>
+                                <td class="px-6 py-4 final-total-score-cell font-bold text-blue-600">${p.totalScore.toFixed(2)}</td>
+                                <td class="px-6 py-4 final-award-cell font-bold" contenteditable="true">${p.award}</td>
+                            </tr>`;
+                });
+            });
+            contentHTML += `</tbody></table></div></div>`;
+
+            contentHTML += `<div><h2 class="text-2xl font-bold mb-4 text-slate-800">부문별 점수 차트 (수정 반영)</h2><div class="space-y-8">`;
+            Object.keys(presenters).forEach(category => {
+                const chartHeight = presenters[category].length * 40 + 40;
+                contentHTML += `<div><h3 class="font-semibold mb-2">${categoryDisplayNames[category] || category} 종합 점수</h3><div class="chart-container mx-auto" style="height:${chartHeight}px"><canvas id="final-${category}-chart"></canvas></div></div>`;
+            });
+            contentHTML += `</div></div></div>`;
+            return introHTML + contentHTML;
+        }
+        
+        function renderFinalResultsCharts() {
+            if (!finalResultsData) return;
+            Object.keys(finalResultsData).forEach(category => {
+                const ctx = document.getElementById(`final-${category}-chart`);
+                if (ctx) {
+                    const existingChart = Chart.getChart(ctx);
+                    if (existingChart) {
+                        existingChart.destroy();
+                    }
+                    const sortedResults = [...finalResultsData[category]].sort((a,b) => a.totalScore - b.totalScore);
+                    new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: sortedResults.map(p => p.name),
+                            datasets: [
+                                {
+                                    label: '평균점수',
+                                    data: sortedResults.map(p => p.score),
+                                    backgroundColor: 'rgba(56, 189, 248, 0.8)',
+                                    borderColor: 'rgba(14, 165, 233, 1)',
+                                    borderWidth: 1
+                                },
+                                {
+                                    label: '투표점수',
+                                    data: sortedResults.map(p => p.voteScore),
+                                     backgroundColor: 'rgba(16, 185, 129, 0.8)',
+                                    borderColor: 'rgba(5, 150, 105, 1)',
+                                    borderWidth: 1
+                                }
+                            ]
+                        },
+                        options: {
+                            indexAxis: 'y',
+                            scales: { 
+                                x: { stacked: true, beginAtZero: true, max: 110 },
+                                y: { stacked: true }
+                            },
+                            responsive: true,
+                            maintainAspectRatio: false,
+                             plugins: { 
+                                legend: { display: true, position: 'top' } 
+                            }
+                        }
+                    });
+                }
+            });
+        }
+        
+        function renderExcellentPresenters() {
+            const mySelections = excellentPresenterSelections[loginId]?.selections || {};
+            const isSubmitted = excellentPresenterSelections[loginId]?.submitted === true;
+
+            let introHTML = `<div class="p-4 mb-6 bg-sky-50 border border-sky-200 rounded-lg flex flex-col md:flex-row justify-between items-start md:items-center">
+                <p class="text-slate-700 mb-3 md:mb-0 md:mr-4 flex-grow">${introTexts.excellent_presenters}</p>
+                <button id="excellent-presenter-submit-btn" class="w-full md:w-auto flex-shrink-0 bg-teal-600 text-white px-4 py-2 rounded-lg hover:bg-teal-700 transition focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 disabled:bg-slate-400 disabled:cursor-not-allowed" ${isSubmitted ? 'disabled' : ''}>
+                    ${isSubmitted ? '제출 완료' : '최종 제출'}
+                </button>
+            </div>`;
+            let contentHTML = `<div class="overflow-x-auto bg-white rounded-lg shadow">`;
+            const results = calculateResults();
+
+            contentHTML += `<table class="w-full text-sm text-left text-slate-500">`;
+            contentHTML += `<thead class="text-xs text-slate-700 uppercase bg-slate-100"><tr>`;
+            contentHTML += `<th class="px-6 py-3">선택</th>`;
+            contentHTML += `<th class="px-6 py-3">부문</th>`;
+            contentHTML += `<th class="px-6 py-3">발표자</th>`;
+            contentHTML += `</tr></thead><tbody>`;
+
+            Object.keys(results).forEach(category => {
+                results[category].forEach((p, index) => {
+                    const isChecked = mySelections[category] === p.name;
+                    contentHTML += `<tr class="bg-white border-b" data-category="${category}">
+                                <td class="px-6 py-4">
+                                    <input type="checkbox" class="excellent-presenter-checkbox h-5 w-5 rounded border-gray-300 text-sky-600 focus:ring-sky-500" data-category="${category}" data-presenter-name="${p.name}" ${isChecked ? 'checked' : ''} ${isSubmitted ? 'disabled' : ''}>
+                                </td>
+                                ${index === 0 ? `<td class="px-6 py-4 font-semibold" rowspan="${results[category].length}">${categoryDisplayNames[category] || category}</td>` : ''}
+                                <td class="px-6 py-4 font-medium text-slate-900">${p.name}</td>
+                            </tr>`;
+                });
+            });
+            contentHTML += `</tbody></table></div>`;
+            return introHTML + contentHTML;
+        }
+
+        async function saveExcellentSelection(category, presenterName) {
+            if (!loginId) return;
+            const docRef = doc(db, `/artifacts/${appId}/public/data/excellent_presenter_selections`, loginId);
+            const payload = {
+                [`selections.${category}`]: presenterName
+            };
+            try {
+                await setDoc(docRef, { evaluatorName: loginId }, { merge: true });
+                await updateDoc(docRef, payload);
+            } catch (error) {
+                console.error("Error saving excellent presenter selection:", error);
+            }
+        }
+
+        async function submitExcellentSelections() {
+            if (!loginId) return;
+            const docRef = doc(db, `/artifacts/${appId}/public/data/excellent_presenter_selections`, loginId);
+            try {
+                await updateDoc(docRef, { submitted: true });
+                showMessage("우수 발표자 선정을 최종 제출했습니다. 이제 수정할 수 없습니다.");
+            } catch (error) {
+                console.error("Error submitting excellent selections:", error);
+                showMessage("제출 중 오류가 발생했습니다.");
+            }
+        }
+        
+        function updateUIVisibility() {
+            const allTabs = document.querySelectorAll('#tab-buttons button');
+            const simBtn = document.getElementById('simulationBtn');
+            const exportBtn = document.getElementById('exportBtn');
+            const saveLogoutBtn = document.getElementById('save-logout-btn');
+            const resetBtn = document.getElementById('resetBtn');
+
+            simBtn.style.display = 'none';
+            exportBtn.style.display = 'none';
+            saveLogoutBtn.style.display = 'none';
+            resetBtn.style.display = 'none';
+
+            if (currentUserRole === 'admin') {
+                simBtn.style.display = 'inline-block';
+                exportBtn.style.display = 'inline-block';
+                resetBtn.style.display = 'inline-block';
+                saveLogoutBtn.style.display = 'inline-block';
+                allTabs.forEach(tab => tab.style.display = 'inline-flex');
+            } else if (currentUserRole === 'voter') {
+                saveLogoutBtn.style.display = 'inline-block';
+                allTabs.forEach(tab => {
+                    if(tab.dataset.tab !== 'excellent_presenters') {
+                        tab.style.display = 'none';
+                    } else {
+                        tab.style.display = 'inline-flex';
+                        if (activeTab !== 'excellent_presenters') {
+                            document.querySelector('.tab-button[data-tab="excellent_presenters"]').click();
+                        }
+                    }
+                });
+            } else if (currentUserRole === 'evaluator') {
+                saveLogoutBtn.style.display = 'inline-block';
+                const evaluatorHiddenTabs = ['detailed_results', 'voter_detailed_results', 'final_results', 'excellent_presenters'];
+                allTabs.forEach(tab => {
+                    if (evaluatorHiddenTabs.includes(tab.dataset.tab)) {
+                        tab.style.display = 'none';
+                    } else {
+                        tab.style.display = 'inline-flex';
+                    }
+                });
+                if (evaluatorHiddenTabs.includes(activeTab)) {
+                    document.querySelector('.tab-button[data-tab="6s"]').click();
+                }
+            }
+        }
+        
+        async function handleLogin() {
+            const role = document.getElementById('login-role').value;
+            const idInput = document.getElementById('login-id');
+            const passwordInput = document.getElementById('password');
+            const errorDiv = document.getElementById('login-error');
+            const errorMessage = document.getElementById('login-error-message');
+
+            const id = idInput.value.trim();
+            const password = passwordInput.value;
+            errorDiv.classList.add('hidden');
+
+            try {
+                await initializeFirebaseOnce();
+            } catch(e) {
+                errorMessage.textContent = '시스템 초기화에 실패했습니다.';
+                errorDiv.classList.remove('hidden');
+                return;
+            }
+            
+            if (role === 'evaluator') {
+                if (id === '') {
+                    errorMessage.textContent = '성명을 입력해 주세요.';
+                    errorDiv.classList.remove('hidden');
+                    return;
+                }
+                if (password !== 'atec1114') {
+                    errorMessage.textContent = '비밀번호가 일치하지 않습니다.';
+                    errorDiv.classList.remove('hidden');
+                    return;
+                }
+                currentUserRole = 'evaluator';
+            } else if (role === 'voter') {
+                const voterIdRegex = /^atec(00[1-9]|0[1-9]\d|1\d\d|200)$/;
+                if (!voterIdRegex.test(id)) {
+                    errorMessage.textContent = '아이디 형식이 올바르지 않습니다. (예: atec001)';
+                    errorDiv.classList.remove('hidden');
+                    return;
+                }
+                if (id !== password) {
+                    errorMessage.textContent = '아이디와 비밀번호가 일치하지 않습니다.';
+                    errorDiv.classList.remove('hidden');
+                    return;
+                }
+                const sessionDocRef = doc(db, `/artifacts/${appId}/public/data/voter_sessions`, id);
+                 try {
+                    const docSnap = await getDoc(sessionDocRef);
+                    if (docSnap.exists()) {
+                        errorMessage.textContent = '이미 로그인된 아이디입니다.';
+                        errorDiv.classList.remove('hidden');
+                        return;
+                    }
+                    await setDoc(sessionDocRef, { active: true, loginTime: serverTimestamp(), role: 'voter' });
+                } catch(e) {
+                     errorMessage.textContent = `로그인 처리 중 오류가 발생했습니다: ${e.message}`;
+                     errorDiv.classList.remove('hidden');
+                     return;
+                }
+                currentUserRole = 'voter';
+            } else if (role === 'admin') {
+                 if (id !== 'admin' || password !== '$atec@000$') {
+                    errorMessage.textContent = '관리자 아이디 또는 비밀번호가 일치하지 않습니다.';
+                    errorDiv.classList.remove('hidden');
+                    return;
+                 }
+                 currentUserRole = 'admin';
+            }
+
+            loginId = id;
+
+            document.getElementById('login-container').classList.add('hidden');
+            document.getElementById('app-container').classList.remove('hidden');
+            
+            document.getElementById('userInfo').textContent = `${currentUserRole === 'admin' ? '관리자' : currentUserRole === 'evaluator' ? '평가자' : '투표자'}: ${loginId}`;
+
+            setupRealtimeListeners();
+            if (currentUserRole === 'evaluator') {
+                setupSubmissionListener();
+            }
+            setupExcellentPresenterListener();
+        }
+
+        async function handleLogout() {
+            if (loginId && currentUserRole === 'voter') {
+                const sessionDocRef = doc(db, `/artifacts/${appId}/public/data/voter_sessions`, loginId);
+                try {
+                    await deleteDoc(sessionDocRef);
+                } catch (error) {
+                    console.error("Error removing voter session on logout:", error);
+                }
+            }
+            
+            window.location.reload();
+        }
+        
+        function exportToCSV() {
+            let csvContent = "\uFEFF"; 
+
+            const summaryResults = calculateResults();
+            csvContent += "부문별 훈격\n";
+            csvContent += "부문,발표자,평균점수,투표점수,종합점수,훈격\n";
+            Object.keys(summaryResults).forEach(category => {
+                summaryResults[category].forEach((p, index) => {
+                    csvContent += `${categoryDisplayNames[category]},${p.name},${p.score.toFixed(2)},${p.voteScore},${p.totalScore.toFixed(2)},${p.award}\n`;
+                });
+            });
+            
+            csvContent += "\n\n평가자별 상세 결과 (총점)\n";
+            const evaluators = getUniqueEvaluators().filter(id => !id.startsWith('sim-voter-'));
+            
+            let header1 = "평가자,";
+            let header2 = ",";
+            Object.keys(presenters).forEach(category => {
+                header1 += `${categoryDisplayNames[category]}${','.repeat(presenters[category].length)}`;
+                presenters[category].forEach(p => header2 += `${p.name},`);
+            });
+            csvContent += header1.slice(0, -1) + "\n" + header2.slice(0, -1) + "\n";
+
+            evaluators.forEach(evaluator => {
+                let row = `${evaluator},`;
+                Object.keys(presenters).forEach(category => {
+                    presenters[category].forEach(presenter => {
+                         let totalScore = 0;
+                        const criteria = evaluationCriteria[category];
+                        const scores = allScores[presenter.id]?.scores?.[evaluator];
+                        if (scores) {
+                            totalScore = criteria.reduce((sum, c) => sum + (scores[c.key] || 0), 0);
+                        }
+                        row += `${totalScore || '0'},`;
+                    });
+                });
+                csvContent += row.slice(0, -1) + "\n";
+            });
+            
+            csvContent += "\n\n투표자별 상세 결과\n";
+            const voters = Object.keys(excellentPresenterSelections).sort();
+            const voteCounts = calculateVoteCounts();
+            const voteScores = calculateVoteScores();
+
+            
+            let voterHeader1 = "투표자,";
+            let voterHeader2 = ",";
+            Object.keys(presenters).forEach(category => {
+                voterHeader1 += `${categoryDisplayNames[category]}${','.repeat(presenters[category].length)}`;
+                presenters[category].forEach(p => voterHeader2 += `${p.name},`);
+            });
+            csvContent += voterHeader1.slice(0, -1) + "\n" + voterHeader2.slice(0, -1) + "\n";
+
+             let voteCountRow = "투표건수,";
+            Object.keys(presenters).forEach(category => {
+                presenters[category].forEach(presenter => {
+                    voteCountRow += `${voteCounts[category][presenter.name] || 0},`;
+                });
+            });
+            csvContent += voteCountRow.slice(0,-1) + "\n";
+
+            let voteScoreRow = "투표점수,";
+             Object.keys(presenters).forEach(category => {
+                presenters[category].forEach(presenter => {
+                     voteScoreRow += `${voteScores[category][presenter.name] || 0},`;
+                });
+            });
+            csvContent += voteScoreRow.slice(0,-1) + "\n";
+
+
+            voters.forEach(voterId => {
+                const selectionData = excellentPresenterSelections[voterId];
+                if (!selectionData || !selectionData.selections) return;
+
+                let row = `${voterId},`;
+                Object.keys(presenters).forEach(category => {
+                    presenters[category].forEach(presenter => {
+                        const selectedPresenter = selectionData.selections[category];
+                        row += `${selectedPresenter === presenter.name ? '✔' : ''},`;
+                    });
+                });
+                csvContent += row.slice(0, -1) + "\n";
+            });
+
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            const url = URL.createObjectURL(blob);
+            link.setAttribute("href", url);
+            link.setAttribute("download", "evaluation_results.csv");
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        const debouncedUpdateScore = debounce((id, key, value) => { updateScore(id, key, value); }, 400); 
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const roleEvaluatorBtn = document.getElementById('role-evaluator');
+            const roleVoterBtn = document.getElementById('role-voter');
+            const roleAdminBtn = document.getElementById('role-admin');
+            const loginIdLabel = document.getElementById('login-id-label');
+            const loginIdInput = document.getElementById('login-id');
+            const loginRoleInput = document.getElementById('login-role');
+
+            function setRole(role) {
+                loginRoleInput.value = role;
+                [roleEvaluatorBtn, roleVoterBtn, roleAdminBtn].forEach(btn => btn.classList.remove('active'));
+                
+                if (role === 'evaluator') {
+                    roleEvaluatorBtn.classList.add('active');
+                    loginIdLabel.textContent = '성명';
+                    loginIdInput.placeholder = '성명 (예: 홍길동)';
+                } else if(role === 'voter') {
+                    roleVoterBtn.classList.add('active');
+                    loginIdLabel.textContent = '아이디';
+                    loginIdInput.placeholder = '아이디 (예: atec001)';
+                } else if (role === 'admin') {
+                    roleAdminBtn.classList.add('active');
+                    loginIdLabel.textContent = '관리자 ID';
+                    loginIdInput.placeholder = 'admin';
+                }
+            }
+
+            setRole('evaluator');
+
+            roleEvaluatorBtn.addEventListener('click', () => setRole('evaluator'));
+            roleVoterBtn.addEventListener('click', () => setRole('voter'));
+            roleAdminBtn.addEventListener('click', () => setRole('admin'));
+
+            document.getElementById('login-btn').addEventListener('click', handleLogin);
+            document.getElementById('simulationBtn').addEventListener('click', runSimulation);
+            document.getElementById('exportBtn').addEventListener('click', exportToCSV);
+            document.getElementById('save-logout-btn').addEventListener('click', handleLogout);
+            document.getElementById('resetBtn').addEventListener('click', resetSimulationData);
+            document.getElementById('closeModalBtn').addEventListener('click', hideMessage);
+            document.getElementById('confirmModalBtn').addEventListener('click', () => {
+                if (typeof confirmAction === 'function') {
+                    confirmAction();
+                }
+                hideMessage();
+            });
+
+            document.getElementById('tab-buttons').addEventListener('click', (e) => {
+                if (e.target.tagName === 'BUTTON') {
+                    activeTab = e.target.dataset.tab;
+                    document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+                    e.target.classList.add('active');
+                    render();
+                }
+            });
+            
+            document.getElementById('tab-content').addEventListener('click', (e) => {
+                if (e.target.classList.contains('submit-btn')) {
+                    const categoryKey = e.target.dataset.category;
+                    submitCategory(categoryKey);
+                }
+                if (e.target.id === 'excellent-presenter-submit-btn') {
+                    showMessage('우수 발표자 선정을 최종 제출하시겠습니까? 제출 후에는 수정할 수 없습니다.', true, submitExcellentSelections);
+                }
+                if (e.target.classList.contains('excellent-presenter-checkbox')) {
+                    const clickedCheckbox = e.target;
+                    const category = clickedCheckbox.dataset.category;
+                    const presenterName = clickedCheckbox.dataset.presenterName;
+                    const isChecked = clickedCheckbox.checked;
+
+                    if (isChecked) {
+                        const checkboxesInCategory = document.querySelectorAll(`.excellent-presenter-checkbox[data-category="${category}"]`);
+                        checkboxesInCategory.forEach(cb => {
+                            if (cb !== clickedCheckbox) {
+                                cb.checked = false;
+                            }
+                        });
+                        saveExcellentSelection(category, presenterName);
+                    } else {
+                        const myCurrentSelections = excellentPresenterSelections[loginId]?.selections || {};
+                        if (myCurrentSelections[category] === presenterName) {
+                        saveExcellentSelection(category, null);
+                        }
+                    }
+                }
+            });
+
+            document.getElementById('tab-content').addEventListener('input', (e) => {
+                if (e.target.classList.contains('score-input')) {
+                    const { id, key } = e.target.dataset;
+                    const value = e.target.value;
+                    const max = parseInt(e.target.max, 10);
+                    let scoreValue = value === '' ? null : parseInt(value, 10);
+
+                    if (scoreValue !== null) {
+                        if (scoreValue > max) { e.target.value = max; scoreValue = max; }
+                        if (scoreValue < 0) { e.target.value = 0; scoreValue = 0; }
+                    }
+                    
+                    if (!allScores[id]) {
+                        allScores[id] = { scores: {} };
+                    }
+                    if (!allScores[id].scores) {
+                        allScores[id].scores = {};
+                    }
+                    if (!allScores[id].scores[loginId]) {
+                        allScores[id].scores[loginId] = {};
+                    }
+                    allScores[id].scores[loginId][key] = scoreValue;
+                    
+                    renderColumnTotals(activeTab);
+                    
+                    debouncedUpdateScore(id, key, e.target.value);
+                }
+            });
+            
+            document.getElementById('tab-content').addEventListener('change', (e) => {
+                if (e.target.classList.contains('final-presenter-select')) {
+                    const tr = e.target.closest('tr');
+                    const category = tr.dataset.category;
+                    const index = parseInt(tr.dataset.index, 10);
+                    const selectedId = e.target.value;
+                    const selectedPresenter = presenters[category].find(p => p.id === selectedId);
+
+                    finalResultsData[category][index].id = selectedPresenter.id;
+                    finalResultsData[category][index].name = selectedPresenter.name;
+                    
+                    renderFinalResultsCharts();
+                }
+            });
+            
+            document.getElementById('tab-content').addEventListener('blur', (e) => {
+                if (e.target.classList.contains('final-score-cell') || e.target.classList.contains('final-award-cell') || e.target.classList.contains('final-vote-score-cell')) {
+                    const tr = e.target.closest('tr');
+                    if(!tr) return;
+                    const category = tr.dataset.category;
+                    const index = parseInt(tr.dataset.index, 10);
+
+                    if (e.target.classList.contains('final-score-cell')) {
+                        const newScore = parseFloat(e.target.textContent) || 0;
+                        finalResultsData[category][index].score = newScore;
+                    } else if (e.target.classList.contains('final-vote-score-cell')) {
+                        const newVoteScore = parseInt(e.target.textContent, 10) || 0;
+                        finalResultsData[category][index].voteScore = newVoteScore;
+                    } else if (e.target.classList.contains('final-award-cell')) {
+                        const newAward = e.target.textContent.trim();
+                        finalResultsData[category][index].award = newAward;
+                    }
+                    
+                    const currentData = finalResultsData[category][index];
+                    currentData.totalScore = currentData.score + currentData.voteScore;
+                    tr.querySelector('.final-total-score-cell').textContent = currentData.totalScore.toFixed(2);
+
+                    renderFinalResultsCharts();
+                }
+            }, true);
+        });
+
+    </script>
+</body>
+</html>
