@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>개선과제 온라인 평가 시스템</title>
     <!-- Chosen Palette: Calm Corporate (Tailwind Slate & Sky) -->
-    <!-- Application Structure Plan: A role-based login screen (Admin/Evaluator/Voter) directs users to appropriate views. Admins get full access including simulation and export. Evaluators access scoring tabs and can now save & logout. Voters are directed to a single '우수 발표자' tab. This RBAC simplifies the UI for each role. Automated result aggregation and manual override tabs remain for administrators/evaluator. -->
-    <!-- Visualization & Content Choices: The core visualization remains consistent. The key change is the application of role-based access control (RBAC) to the UI, hiding and showing tabs and control buttons (simulation, export) based on the user's role determined at login. A new CSV export function aggregates data from multiple sources for offline analysis. -->
+    <!-- Application Structure Plan: A role-based login screen (Admin/Evaluator/Voter) directs users to appropriate views. Admins get full access including simulation, export, and full data reset. Evaluators access scoring tabs and can now save & logout. Voters are directed to a single '우수 발표자' tab. This RBAC simplifies the UI for each role. -->
+    <!-- Visualization & Content Choices: The core visualization remains consistent. The key change is the application of role-based access control (RBAC) to the UI, hiding and showing tabs and control buttons based on the user's role. A new CSV export function aggregates data from multiple sources for offline analysis. The new full reset function includes a critical auto-export safety feature. -->
     <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -62,7 +62,8 @@
             <div class="mt-4 space-x-2">
                 <button id="simulationBtn" class="hidden bg-sky-600 text-white px-4 py-2 rounded-lg hover:bg-sky-700 transition duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500">가상 평가 시뮬레이션</button>
                 <button id="exportBtn" class="hidden bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500">스프레드시트로 저장</button>
-                <button id="resetBtn" class="hidden bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">시뮬레이션 초기화</button>
+                <button id="resetSimBtn" class="hidden bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">시뮬레이션 초기화</button>
+                <button id="fullResetBtn" class="hidden bg-red-800 text-white px-4 py-2 rounded-lg hover:bg-red-900 transition duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-700">전체 데이터 초기화</button>
                 <button id="save-logout-btn" class="hidden bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 transition duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500">임시저장 및 로그아웃</button>
             </div>
             <div id="userInfo" class="mt-4 text-sm text-slate-500"></div>
@@ -105,13 +106,13 @@
         import { getFirestore, doc, setDoc, onSnapshot, collection, setLogLevel, updateDoc, getDoc, serverTimestamp, deleteDoc, writeBatch, deleteField, query, where, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         const firebaseConfig = {
-          apiKey: "AIzaSyDHDao8IpUtUPISOLtEv9OoPuLW8Ns7ztA",
-          authDomain: "evaluation-468b4.firebaseapp.com",
-          projectId: "evaluation-468b4",
-          storageBucket: "evaluation-468b4.firebasestorage.app",
-          messagingSenderId: "1067413771670",
-          appId: "1:1067413771670:web:48d16f8f17ec14a0baf9b7",
-          measurementId: "G-8PPK4XEJCZ"
+          apiKey: "AIzaSyCdJjwfg8Pivrpr3pOC6rMH9UUwvAFhzNM",
+          authDomain: "test-evaluation-d90b3.firebaseapp.com",
+          projectId: "test-evaluation-d90b3",
+          storageBucket: "test-evaluation-d90b3.firebasestorage.app",
+          messagingSenderId: "211319533435",
+          appId: "1:211319533435:web:e5c339a784c257c23597de",
+          measurementId: "G-JXM4VM01R0"
         };
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-innovation-eval-app';
         
@@ -465,7 +466,7 @@
 
         async function resetSimulationData() {
             showMessage('모든 시뮬레이션 데이터를 초기화하시겠습니까? 이 작업은 되돌릴 수 없습니다.', true, async () => {
-                const btn = document.getElementById('resetBtn');
+                const btn = document.getElementById('resetSimBtn');
                 const simBtn = document.getElementById('simulationBtn');
                 btn.disabled = true;
                 simBtn.disabled = true;
@@ -516,6 +517,38 @@
             });
         }
         
+        async function resetAllData() {
+            showMessage('모든 평가 및 투표 데이터를 영구적으로 삭제하시겠습니까? 이 작업은 되돌릴 수 없으며, 삭제 전 데이터가 CSV 파일로 자동 저장됩니다.', true, async () => {
+                exportToCSV(); 
+                
+                const btn = document.getElementById('fullResetBtn');
+                btn.disabled = true;
+                btn.textContent = '삭제 중...';
+
+                try {
+                    const collectionsToDelete = ['scores', 'excellent_presenter_selections', 'submissions', 'voter_sessions', 'evaluator_sessions'];
+                    const batch = writeBatch(db);
+
+                    for (const collectionName of collectionsToDelete) {
+                        const collectionRef = collection(db, `/artifacts/${appId}/public/data/${collectionName}`);
+                        const snapshot = await getDocs(collectionRef);
+                        snapshot.forEach(doc => {
+                            batch.delete(doc.ref);
+                        });
+                    }
+
+                    await batch.commit();
+                    showMessage('모든 데이터가 성공적으로 초기화되었습니다.');
+                } catch (error) {
+                    console.error("Error resetting all data:", error);
+                    showMessage('전체 데이터 초기화 중 오류가 발생했습니다.');
+                } finally {
+                    btn.disabled = false;
+                    btn.textContent = '전체 데이터 초기화';
+                }
+            });
+        }
+
         function render() {
             const tabContent = document.getElementById('tab-content');
             if(!tabContent) return;
@@ -1086,17 +1119,20 @@
             const simBtn = document.getElementById('simulationBtn');
             const exportBtn = document.getElementById('exportBtn');
             const saveLogoutBtn = document.getElementById('save-logout-btn');
-            const resetBtn = document.getElementById('resetBtn');
+            const resetBtn = document.getElementById('resetSimBtn');
+            const fullResetBtn = document.getElementById('fullResetBtn');
 
             simBtn.style.display = 'none';
             exportBtn.style.display = 'none';
             saveLogoutBtn.style.display = 'none';
             resetBtn.style.display = 'none';
+            fullResetBtn.style.display = 'none';
 
             if (currentUserRole === 'admin') {
                 simBtn.style.display = 'inline-block';
                 exportBtn.style.display = 'inline-block';
                 resetBtn.style.display = 'inline-block';
+                fullResetBtn.style.display = 'inline-block';
                 saveLogoutBtn.style.display = 'inline-block';
                 allTabs.forEach(tab => tab.style.display = 'inline-flex');
             } else if (currentUserRole === 'voter') {
@@ -1209,12 +1245,12 @@
         }
 
         async function handleLogout() {
-            if (loginId && currentUserRole === 'voter') {
+            if (loginId && (currentUserRole === 'voter')) {
                 const sessionDocRef = doc(db, `/artifacts/${appId}/public/data/voter_sessions`, loginId);
                 try {
                     await deleteDoc(sessionDocRef);
                 } catch (error) {
-                    console.error("Error removing voter session on logout:", error);
+                    console.error("Error removing session on logout:", error);
                 }
             }
             
@@ -1356,7 +1392,8 @@
             document.getElementById('simulationBtn').addEventListener('click', runSimulation);
             document.getElementById('exportBtn').addEventListener('click', exportToCSV);
             document.getElementById('save-logout-btn').addEventListener('click', handleLogout);
-            document.getElementById('resetBtn').addEventListener('click', resetSimulationData);
+            document.getElementById('resetSimBtn').addEventListener('click', resetSimulationData);
+            document.getElementById('fullResetBtn').addEventListener('click', resetAllData);
             document.getElementById('closeModalBtn').addEventListener('click', hideMessage);
             document.getElementById('confirmModalBtn').addEventListener('click', () => {
                 if (typeof confirmAction === 'function') {
