@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>개선과제 온라인 평가 시스템</title>
     <!-- Chosen Palette: Calm Corporate (Tailwind Slate & Sky) -->
-    <!-- Application Structure Plan: A role-based login screen (Admin/Evaluator/Voter) directs users to appropriate views. Admins get full access including simulation, export, and full data reset. Evaluators access scoring tabs and can now save & logout. Voters are directed to a single '우수 발표자' tab. This RBAC simplifies the UI for each role. -->
-    <!-- Visualization & Content Choices: The core visualization remains consistent. The key change is the application of role-based access control (RBAC) to the UI, hiding and showing tabs and control buttons based on the user's role. A new CSV export function aggregates data from multiple sources for offline analysis. The new full reset function includes a critical auto-export safety feature. -->
+    <!-- Application Structure Plan: A role-based login screen (Admin/Evaluator/Voter) directs users to appropriate views. Admins get full access including simulation and export. Evaluators access scoring tabs and can now save & logout. Voters are directed to a single '우수 발표자' tab. This RBAC simplifies the UI for each role. Automated result aggregation and manual override tabs remain for administrators/evaluator. -->
+    <!-- Visualization & Content Choices: The core visualization remains consistent. The key change is the application of role-based access control (RBAC) to the UI, hiding and showing tabs and control buttons (simulation, export) based on the user's role determined at login. A new CSV export function aggregates data from multiple sources for offline analysis. The new full reset function includes a critical auto-export safety feature. -->
     <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -106,13 +106,13 @@
         import { getFirestore, doc, setDoc, onSnapshot, collection, setLogLevel, updateDoc, getDoc, serverTimestamp, deleteDoc, writeBatch, deleteField, query, where, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         const firebaseConfig = {
-          apiKey: "AIzaSyDHDao8IpUtUPISOLtEv9OoPuLW8Ns7ztA",
-          authDomain: "evaluation-468b4.firebaseapp.com",
-          projectId: "evaluation-468b4",
-          storageBucket: "evaluation-468b4.firebasestorage.app",
-          messagingSenderId: "1067413771670",
-          appId: "1:1067413771670:web:48d16f8f17ec14a0baf9b7",
-          measurementId: "G-8PPK4XEJCZ"
+          apiKey: "AIzaSyCdJjwfg8Pivrpr3pOC6rMH9UUwvAFhzNM",
+          authDomain: "test-evaluation-d90b3.firebaseapp.com",
+          projectId: "test-evaluation-d90b3",
+          storageBucket: "test-evaluation-d90b3.appspot.com",
+          messagingSenderId: "211319533435",
+          appId: "1:211319533435:web:e5c339a784c257c23597de",
+          measurementId: "G-JXM4VM01R0"
         };
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-innovation-eval-app';
         
@@ -559,6 +559,9 @@
             if (activeTab === 'results') {
                 tabContent.innerHTML = renderResults();
                 setTimeout(renderAllCharts, 0);
+            } else if (activeTab === 'live_vote_status') {
+                tabContent.innerHTML = renderLiveVoteStatus();
+                setTimeout(renderLiveVoteCharts, 0);
             } else if (activeTab === 'detailed_results') {
                 tabContent.innerHTML = renderDetailedResults();
             } else if (activeTab === 'voter_detailed_results') {
@@ -1119,19 +1122,19 @@
             const simBtn = document.getElementById('simulationBtn');
             const exportBtn = document.getElementById('exportBtn');
             const saveLogoutBtn = document.getElementById('save-logout-btn');
-            const resetBtn = document.getElementById('resetSimBtn');
+            const resetSimBtn = document.getElementById('resetSimBtn');
             const fullResetBtn = document.getElementById('fullResetBtn');
 
             simBtn.style.display = 'none';
             exportBtn.style.display = 'none';
             saveLogoutBtn.style.display = 'none';
-            resetBtn.style.display = 'none';
+            resetSimBtn.style.display = 'none';
             fullResetBtn.style.display = 'none';
 
             if (currentUserRole === 'admin') {
                 simBtn.style.display = 'inline-block';
                 exportBtn.style.display = 'inline-block';
-                resetBtn.style.display = 'inline-block';
+                resetSimBtn.style.display = 'inline-block';
                 fullResetBtn.style.display = 'inline-block';
                 saveLogoutBtn.style.display = 'inline-block';
                 allTabs.forEach(tab => tab.style.display = 'inline-flex');
