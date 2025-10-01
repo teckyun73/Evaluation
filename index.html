@@ -980,7 +980,7 @@
                 }
             });
         }
-
+        
         function renderLiveVoteStatus() {
             let introHTML = `<div class="p-4 mb-6 bg-sky-50 border border-sky-200 rounded-lg text-slate-700"><p>${introTexts.live_vote_status}</p></div>`;
             let contentHTML = `<div class="grid grid-cols-1 lg:grid-cols-2 gap-8">`;
@@ -1052,7 +1052,7 @@
                 }
             });
         }
-        
+
         function initializeFinalResultsData() {
             if (!finalResultsData) {
                 finalResultsData = JSON.parse(JSON.stringify(calculateResults()));
@@ -1230,16 +1230,17 @@
                 allTabs.forEach(tab => tab.style.display = 'inline-flex');
             } else if (currentUserRole === 'voter') {
                 saveLogoutBtn.style.display = 'inline-block';
+                const voterVisibleTabs = ['excellent_presenters', 'live_vote_status'];
                 allTabs.forEach(tab => {
-                    if(tab.dataset.tab !== 'excellent_presenters') {
-                        tab.style.display = 'none';
-                    } else {
+                    if (voterVisibleTabs.includes(tab.dataset.tab)) {
                         tab.style.display = 'inline-flex';
-                        if (activeTab !== 'excellent_presenters') {
-                            document.querySelector('.tab-button[data-tab="excellent_presenters"]').click();
-                        }
+                    } else {
+                        tab.style.display = 'none';
                     }
                 });
+                if (!voterVisibleTabs.includes(activeTab)) {
+                    document.querySelector('.tab-button[data-tab="excellent_presenters"]').click();
+                }
             } else if (currentUserRole === 'evaluator') {
                 saveLogoutBtn.style.display = 'inline-block';
                 const evaluatorHiddenTabs = ['detailed_results', 'voter_detailed_results', 'final_results', 'excellent_presenters', 'live_vote_status'];
