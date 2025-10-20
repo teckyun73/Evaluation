@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>개선과제 온라인 평가 시스템</title>
     <!-- Chosen Palette: Calm Corporate (Tailwind Slate & Sky) -->
-    <!-- Application Structure Plan: A role-based login screen (Admin/Evaluator/Voter) directs users to appropriate views. Admins get full access including simulation, export, and full data reset. Evaluators access scoring tabs and can now save & logout. Voters are directed to a single '우수 발표자' tab. This RBAC simplifies the UI for each role. -->
-    <!-- Visualization & Content Choices: The core visualization remains consistent. The key change is the application of role-based access control (RBAC) to the UI, hiding and showing tabs and control buttons based on the user's role. A new CSV export function aggregates data from multiple sources for offline analysis. The new full reset function includes a critical auto-export safety feature. -->
+    <!-- Application Structure Plan: A role-based login screen (Admin/Evaluator/Voter) directs users to appropriate views. A new 'Live Vote Status' dashboard has been added for Admins and Evaluators. This dashboard provides a real-time, two-column view of the popular vote, separating the raw vote counts (visualized as bar charts for quick comparison) from the calculated, ranked scores (presented in tables for detailed analysis). This structure supports the task of monitoring the voting process and its impact on the final scores. -->
+    <!-- Visualization & Content Choices: The new dashboard utilizes Chart.js for real-time horizontal bar charts to display raw vote counts per presenter, chosen for its clarity in comparing quantities. The adjacent tables present the calculated vote scores based on ranking (10, 7, 4, 1), providing a direct numerical translation of the visual data. This dual presentation caters to both quick visual assessment and precise data review. The Gemini AI feedback feature remains within the evaluation tabs to assist scorers. -->
     <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -20,6 +20,19 @@
         .role-selector-btn.active { background-color: #0ea5e9; color: white; }
         .role-selector-btn:not(.active) { background-color: #f1f5f9; color: #64748b; }
         .score-input-cell { text-align: center; }
+        .loader {
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #3498db;
+            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body class="text-slate-800">
@@ -77,6 +90,7 @@
                     <button data-tab="rnd" class="tab-button text-sm md:text-base font-medium text-center text-slate-500 border-b-2 border-transparent px-4 py-3 hover:text-slate-700 hover:border-slate-300">R&D</button>
                     <button data-tab="ai" class="tab-button text-sm md:text-base font-medium text-center text-slate-500 border-b-2 border-transparent px-4 py-3 hover:text-slate-700 hover:border-slate-300">AI</button>
                     <button data-tab="results" class="tab-button text-sm md:text-base font-medium text-center text-slate-500 border-b-2 border-transparent px-4 py-3 hover:text-slate-700 hover:border-slate-300">종합 결과</button>
+                    <button data-tab="live_vote_status" class="tab-button text-sm md:text-base font-medium text-center text-slate-500 border-b-2 border-transparent px-4 py-3 hover:text-slate-700 hover:border-slate-300">실시간 투표 현황</button>
                     <button data-tab="detailed_results" class="tab-button text-sm md:text-base font-medium text-center text-slate-500 border-b-2 border-transparent px-4 py-3 hover:text-slate-700 hover:border-slate-300">평가자별 상세 결과</button>
                     <button data-tab="voter_detailed_results" class="tab-button text-sm md:text-base font-medium text-center text-slate-500 border-b-2 border-transparent px-4 py-3 hover:text-slate-700 hover:border-slate-300">투표자별 상세 결과</button>
                     <button data-tab="final_results" class="tab-button text-sm md:text-base font-medium text-center text-slate-500 border-b-2 border-transparent px-4 py-3 hover:text-slate-700 hover:border-slate-300">최종 결과</button>
@@ -105,15 +119,20 @@
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, onSnapshot, collection, setLogLevel, updateDoc, getDoc, serverTimestamp, deleteDoc, writeBatch, deleteField, query, where, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        const firebaseConfig = {
-          apiKey: "AIzaSyDHDao8IpUtUPISOLtEv9OoPuLW8Ns7ztA",
-          authDomain: "evaluation-468b4.firebaseapp.com",
-          projectId: "evaluation-468b4",
-          storageBucket: "evaluation-468b4.firebasestorage.app",
-          messagingSenderId: "1067413771670",
-          appId: "1:1067413771670:web:48d16f8f17ec14a0baf9b7",
-          measurementId: "G-8PPK4XEJCZ"
+        const productionConfig = {
+            apiKey: "AIzaSyDHDao8IpUtUPISOLtEv9OoPuLW8Ns7ztA",
+            authDomain: "evaluation-468b4.firebaseapp.com",
+            projectId: "evaluation-468b4",
+            storageBucket: "evaluation-468b4.appspot.com",
+            messagingSenderId: "1067413771670",
+            appId: "1:1067413771670:web:48d16f8f17ec14a0baf9b7",
+            measurementId: "G-8PPK4XEJCZ"
         };
+
+        const firebaseConfig = typeof __firebase_config !== 'undefined' 
+            ? JSON.parse(__firebase_config) 
+            : productionConfig;
+
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-innovation-eval-app';
         
         const presenters = {
@@ -164,6 +183,7 @@
             "rnd": "이 섹션에서는 **R&D 부문** 발표자들의 과제를 평가합니다. 주제 선정부터 실용성까지 각 항목을 신중하게 평가해 주시기 바랍니다.",
             "ai": "이 섹션에서는 **AI 부문** 발표자들의 과제를 평가합니다. 데이터 활용, 모델의 창의성 및 성능을 중심으로 평가를 진행해 주세요.",
             "results": "이곳에서는 모든 평가자들의 점수를 합산한 **최종 결과**를 부문별로 확인할 수 있습니다. 평균 점수와 투표 점수를 기준으로 순위가 매겨지며, 시각적인 비교를 위해 차트가 함께 제공됩니다.",
+            "live_vote_status": "이곳에서는 **실시간 투표 현황**을 확인할 수 있습니다. 왼쪽에는 부문별 득표 현황이 차트로 표시되고, 오른쪽에는 득표 순위에 따른 환산 점수가 표시됩니다.",
             "detailed_results": "이곳에서는 각 평가자가 발표자별, 항목별로 부여한 모든 점수를 상세하게 확인할 수 있습니다. 이를 통해 평가자 간의 점수 편차를 분석하고, 평가의 공정성을 검토할 수 있습니다.",
             "voter_detailed_results": "이곳에서는 각 투표자가 부문별로 어떤 발표자에게 투표했는지 상세 내역을 확인할 수 있습니다. 이를 통해 투표 결과의 투명성을 확보하고 전체적인 투표 경향을 분석할 수 있습니다.",
             "final_results": "이곳에서는 집계된 **최종 결과**를 확인하고, 필요한 경우 직접 수정할 수 있습니다. 발표자 순서나 훈격 등을 드롭다운 메뉴와 직접 입력을 통해 조정하고 최종 결과를 확정하세요.",
@@ -180,6 +200,7 @@
         let firebaseInitPromise = null;
         let finalResultsData = null;
         let confirmAction = null;
+        let liveVoteCharts = {};
 
         function debounce(func, delay) {
             let timeout;
@@ -317,7 +338,7 @@
                 });
                 if (shouldRerender && document.getElementById('app-container').offsetParent !== null) {
                     finalResultsData = null; 
-                    if (['results', 'detailed_results', 'final_results', 'excellent_presenters', 'voter_detailed_results'].includes(activeTab)) {
+                    if (['results', 'detailed_results', 'final_results', 'excellent_presenters', 'voter_detailed_results', 'live_vote_status'].includes(activeTab)) {
                         render();
                     } else {
                         renderColumnTotals(activeTab);
@@ -559,6 +580,9 @@
             if (activeTab === 'results') {
                 tabContent.innerHTML = renderResults();
                 setTimeout(renderAllCharts, 0);
+            } else if (activeTab === 'live_vote_status') {
+                tabContent.innerHTML = renderLiveVoteStatus();
+                setTimeout(renderLiveVoteCharts, 0);
             } else if (activeTab === 'detailed_results') {
                 tabContent.innerHTML = renderDetailedResults();
             } else if (activeTab === 'voter_detailed_results') {
@@ -960,6 +984,78 @@
             });
         }
         
+        function renderLiveVoteStatus() {
+            let introHTML = `<div class="p-4 mb-6 bg-sky-50 border border-sky-200 rounded-lg text-slate-700"><p>${introTexts.live_vote_status}</p></div>`;
+            let contentHTML = `<div class="grid grid-cols-1 lg:grid-cols-2 gap-8">`;
+            
+            const voteScores = calculateVoteScores();
+
+            contentHTML += `<div><h2 class="text-2xl font-bold mb-4 text-slate-800">실시간 득표 현황</h2><div class="space-y-8">`;
+            Object.keys(presenters).forEach(category => {
+                const chartHeight = presenters[category].length * 50 + 40;
+                contentHTML += `<div><h3 class="font-semibold mb-2">${categoryDisplayNames[category]} 득표수</h3><div class="chart-container mx-auto" style="height:${chartHeight}px"><canvas id="live-vote-${category}-chart"></canvas></div></div>`;
+            });
+            contentHTML += `</div></div>`;
+
+            contentHTML += `<div><h2 class="text-2xl font-bold mb-4 text-slate-800">투표 점수 환산</h2><div class="space-y-8">`;
+            Object.keys(presenters).forEach(category => {
+                contentHTML += `<div><h3 class="font-semibold mb-2">${categoryDisplayNames[category]} 점수</h3><div class="overflow-x-auto bg-white rounded-lg shadow"><table class="w-full text-sm text-left text-slate-500">`;
+                contentHTML += `<thead class="text-xs text-slate-700 uppercase bg-slate-100"><tr><th class="px-6 py-3">발표자</th><th class="px-6 py-3">투표점수</th></tr></thead><tbody>`;
+                const sortedByScore = Object.entries(voteScores[category])
+                    .sort(([, scoreA], [, scoreB]) => scoreB - scoreA);
+                
+                sortedByScore.forEach(([name, score]) => {
+                    contentHTML += `<tr class="bg-white border-b">
+                                        <td class="px-6 py-4 font-medium text-slate-900">${name}</td>
+                                        <td class="px-6 py-4 font-bold text-blue-600">${score}</td>
+                                   </tr>`;
+                });
+                contentHTML += `</tbody></table></div></div>`;
+            });
+            contentHTML += `</div></div></div>`;
+
+            return introHTML + contentHTML;
+        }
+
+        function renderLiveVoteCharts() {
+            const voteCounts = calculateVoteCounts();
+            Object.keys(voteCounts).forEach(category => {
+                const ctx = document.getElementById(`live-vote-${category}-chart`);
+                if (ctx) {
+                    const chartData = Object.entries(voteCounts[category]).sort(([, countA], [, countB]) => countA - countB);
+
+                    if (liveVoteCharts[category]) {
+                        liveVoteCharts[category].destroy();
+                    }
+
+                    liveVoteCharts[category] = new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: chartData.map(([name]) => name),
+                            datasets: [{
+                                label: '득표 수',
+                                data: chartData.map(([, count]) => count),
+                                backgroundColor: 'rgba(22, 163, 74, 0.8)',
+                                borderColor: 'rgba(21, 128, 61, 1)',
+                                borderWidth: 1
+                            }]
+                        },
+                        options: {
+                            indexAxis: 'y',
+                            scales: { 
+                                x: { beginAtZero: true, ticks: { stepSize: 1 } }
+                            },
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: { 
+                                legend: { display: false } 
+                            }
+                        }
+                    });
+                }
+            });
+        }
+
         function initializeFinalResultsData() {
             if (!finalResultsData) {
                 finalResultsData = JSON.parse(JSON.stringify(calculateResults()));
@@ -1119,37 +1215,38 @@
             const simBtn = document.getElementById('simulationBtn');
             const exportBtn = document.getElementById('exportBtn');
             const saveLogoutBtn = document.getElementById('save-logout-btn');
-            const resetBtn = document.getElementById('resetSimBtn');
+            const resetSimBtn = document.getElementById('resetSimBtn');
             const fullResetBtn = document.getElementById('fullResetBtn');
 
             simBtn.style.display = 'none';
             exportBtn.style.display = 'none';
             saveLogoutBtn.style.display = 'none';
-            resetBtn.style.display = 'none';
+            resetSimBtn.style.display = 'none';
             fullResetBtn.style.display = 'none';
 
             if (currentUserRole === 'admin') {
                 simBtn.style.display = 'inline-block';
                 exportBtn.style.display = 'inline-block';
-                resetBtn.style.display = 'inline-block';
+                resetSimBtn.style.display = 'inline-block';
                 fullResetBtn.style.display = 'inline-block';
                 saveLogoutBtn.style.display = 'inline-block';
                 allTabs.forEach(tab => tab.style.display = 'inline-flex');
             } else if (currentUserRole === 'voter') {
                 saveLogoutBtn.style.display = 'inline-block';
+                const voterVisibleTabs = ['excellent_presenters', 'live_vote_status'];
                 allTabs.forEach(tab => {
-                    if(tab.dataset.tab !== 'excellent_presenters') {
-                        tab.style.display = 'none';
-                    } else {
+                    if (voterVisibleTabs.includes(tab.dataset.tab)) {
                         tab.style.display = 'inline-flex';
-                        if (activeTab !== 'excellent_presenters') {
-                            document.querySelector('.tab-button[data-tab="excellent_presenters"]').click();
-                        }
+                    } else {
+                        tab.style.display = 'none';
                     }
                 });
+                if (!voterVisibleTabs.includes(activeTab)) {
+                    document.querySelector('.tab-button[data-tab="excellent_presenters"]').click();
+                }
             } else if (currentUserRole === 'evaluator') {
                 saveLogoutBtn.style.display = 'inline-block';
-                const evaluatorHiddenTabs = ['detailed_results', 'voter_detailed_results', 'final_results', 'excellent_presenters'];
+                const evaluatorHiddenTabs = ['detailed_results', 'voter_detailed_results', 'final_results', 'excellent_presenters', 'live_vote_status'];
                 allTabs.forEach(tab => {
                     if (evaluatorHiddenTabs.includes(tab.dataset.tab)) {
                         tab.style.display = 'none';
