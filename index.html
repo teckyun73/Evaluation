@@ -1024,13 +1024,6 @@
                 const avgScores = categoryResults.map(p => p.score);
                 const voteScores = categoryResults.map(p => p.voteScore);
                 const awards = categoryResults.map(p => p.award);
-                
-                const backgroundColors = categoryResults.map(p => {
-                    if (p.award === '최우수') return 'rgba(251, 191, 36, 0.8)';
-                    if (p.award === '우수') return 'rgba(56, 189, 248, 0.8)';
-                    if (p.award === '장려') return 'rgba(16, 185, 129, 0.8)';
-                    return 'rgba(148, 163, 184, 0.8)';
-                });
 
                 presentationChart = new Chart(ctx, {
                     type: 'bar',
@@ -1056,6 +1049,11 @@
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
+                        layout: {
+                            padding: {
+                                bottom: 30 // 훈격 표시를 위한 하단 여백 추가
+                            }
+                        },
                         scales: {
                             x: {
                                 stacked: true,
@@ -1129,14 +1127,15 @@
                                     const y = bar2.y - 10;
                                     ctx.fillText(totalScore, x, y);
                                     
-                                    ctx.font = 'bold 11px Inter';
+                                    ctx.font = 'bold 15px Inter'; // 훈격 글씨 크기 증가
                                     let awardColor = '#64748b';
                                     if (award === '최우수') awardColor = '#f59e0b';
                                     else if (award === '우수') awardColor = '#0ea5e9';
                                     else if (award === '장려') awardColor = '#10b981';
                                     
                                     ctx.fillStyle = awardColor;
-                                    ctx.fillText(`[${award}]`, x, bar.base + 20);
+                                    // 발표자 이름(x축 레이블) 아래에 훈격이 표시되도록 y 좌표 조정
+                                    ctx.fillText(`[${award}]`, x, chart.chartArea.bottom + 35);
                                     
                                     ctx.restore();
                                 }
@@ -1782,3 +1781,4 @@
     </script>
 </body>
 </html>
+
