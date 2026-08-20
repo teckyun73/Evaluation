@@ -1,6 +1,6 @@
 /**
  * awardCeremony.js
- * 시상식 순차 공개(Award Ceremony Reveal), 축하 컨페티 효과 및 대화면 전체화면(Fullscreen) 모듈
+ * 시상식 순차 공개(Award Ceremony Reveal), 축하 컨페티 효과 및 끊김 없는 전체화면(Fullscreen) 모듈
  */
 
 import { CATEGORY_DISPLAY_NAMES } from '../../config/constants.js';
@@ -30,7 +30,7 @@ export function triggerConfetti() {
     }
 }
 
-export function renderAwardCeremony() {
+function getCeremonyCardsData() {
     const presenters = appState.presenters;
     const criteria = appState.evaluationCriteria;
     const results = calculateResults(presenters, criteria, appState.allScores, appState.excellentPresenterSelections);
@@ -40,6 +40,101 @@ export function renderAwardCeremony() {
     const topWinner = categoryWinners.find(p => p.award === '최우수');
     const runnerUp = categoryWinners.find(p => p.award === '우수');
     const encouragementWinners = categoryWinners.filter(p => p.award === '장려');
+
+    return { topWinner, runnerUp, encouragementWinners, selectedCategory, presenters };
+}
+
+/**
+ * 전체화면이 풀리지 않도록 DOM 요소를 파괴하지 않고 내부 카드만 부드럽게 갱신 (In-place Update)
+ */
+export function updateCeremonyCards() {
+    const container = document.getElementById('award-ceremony-container');
+    if (!container) return;
+
+    const { topWinner, runnerUp, encouragementWinners } = getCeremonyCardsData();
+
+    // 1. 우수상 카드 (2위)
+    const runnerUpCard = container.querySelector('.ceremony-card-runnerup');
+    if (runnerUpCard) {
+        if (currentRevealedLevel >= 2) {
+            runnerUpCard.classList.remove('hidden-award');
+            runnerUpCard.classList.add('revealed');
+            const content = runnerUpCard.querySelector('.award-content');
+            if (content && runnerUp) {
+                content.innerHTML = `
+                    <h3 class="text-2xl md:text-3xl font-extrabold text-slate-900">${runnerUp.name}</h3>
+                    <p class="text-sm md:text-base text-slate-500 mt-2">종합 점수 <strong class="text-sky-600 text-lg md:text-xl">${runnerUp.totalScore.toFixed(2)}점</strong></p>
+                    <div class="mt-3 text-xs text-slate-400">평균 ${runnerUp.score.toFixed(2)}점 / 투표 ${runnerUp.voteScore}점</div>
+                `;
+            }
+        } else {
+            runnerUpCard.classList.remove('revealed');
+            runnerUpCard.classList.add('hidden-award');
+            const content = runnerUpCard.querySelector('.award-content');
+            if (content) {
+                content.innerHTML = `<div class="h-20 md:h-28 flex items-center justify-center text-slate-400 font-bold text-base md:text-lg">❓ 발표 대기 중</div>`;
+            }
+        }
+    }
+
+    // 2. 최우수상 카드 (1위)
+    const topWinnerCard = container.querySelector('.ceremony-card-top');
+    if (topWinnerCard) {
+        if (currentRevealedLevel >= 3) {
+            topWinnerCard.classList.remove('hidden-award');
+            topWinnerCard.classList.add('revealed', 'scale-105', 'ring-4', 'ring-amber-400');
+            const content = topWinnerCard.querySelector('.award-content');
+            if (content && topWinner) {
+                content.innerHTML = `
+                    <h3 class="text-3xl md:text-4xl font-black text-slate-900">${topWinner.name}</h3>
+                    <p class="text-base md:text-lg text-slate-600 mt-2">최종 종합 점수 <strong class="text-amber-600 text-2xl md:text-3xl">${topWinner.totalScore.toFixed(2)}점</strong></p>
+                    <div class="mt-4 text-xs md:text-sm font-semibold text-slate-600 bg-amber-100/70 py-2 px-4 rounded-xl border border-amber-300 inline-block">
+                        심사위원 평균 ${topWinner.score.toFixed(2)}점 + 임직원 투표 ${topWinner.voteScore}점
+                    </div>
+                `;
+            }
+        } else {
+            topWinnerCard.classList.remove('revealed', 'scale-105', 'ring-4', 'ring-amber-400');
+            topWinnerCard.classList.add('hidden-award');
+            const content = topWinnerCard.querySelector('.award-content');
+            if (content) {
+                content.innerHTML = `<div class="h-24 md:h-32 flex items-center justify-center text-amber-800/40 font-extrabold text-lg md:text-2xl">❓ 최종 최우수상 발표 대기</div>`;
+            }
+        }
+    }
+
+    // 3. 장려상 카드 (3위)
+    const encouragementCard = container.querySelector('.ceremony-card-encouragement');
+    if (encouragementCard) {
+        if (currentRevealedLevel >= 1) {
+            encouragementCard.classList.remove('hidden-award');
+            encouragementCard.classList.add('revealed');
+            const content = encouragementCard.querySelector('.award-content');
+            if (content && encouragementWinners.length > 0) {
+                content.innerHTML = `
+                    <div class="space-y-3">
+                        ${encouragementWinners.map(ew => `
+                            <div>
+                                <h3 class="text-xl md:text-2xl font-bold text-slate-900">${ew.name}</h3>
+                                <p class="text-xs md:text-sm text-slate-500 mt-0.5">종합 <strong class="text-emerald-600">${ew.totalScore.toFixed(2)}점</strong></p>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            }
+        } else {
+            encouragementCard.classList.remove('revealed');
+            encouragementCard.classList.add('hidden-award');
+            const content = encouragementCard.querySelector('.award-content');
+            if (content) {
+                content.innerHTML = `<div class="h-20 md:h-28 flex items-center justify-center text-slate-400 font-bold text-base md:text-lg">❓ 발표 대기 중</div>`;
+            }
+        }
+    }
+}
+
+export function renderAwardCeremony() {
+    const { topWinner, runnerUp, encouragementWinners, selectedCategory, presenters } = getCeremonyCardsData();
 
     let html = `
         <div id="award-ceremony-container" class="space-y-6 transition-all">
@@ -75,7 +170,7 @@ export function renderAwardCeremony() {
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-end pt-8 pb-6 ceremony-podium-grid">
                 
                 <!-- 2위: 우수상 (왼쪽) -->
-                <div class="order-2 md:order-1 ceremony-card ${currentRevealedLevel >= 2 ? 'revealed' : 'hidden-award'} bg-white border-2 border-sky-300 rounded-2xl p-6 md:p-8 shadow-lg text-center transform transition-all duration-700">
+                <div class="order-2 md:order-1 ceremony-card ceremony-card-runnerup ${currentRevealedLevel >= 2 ? 'revealed' : 'hidden-award'} bg-white border-2 border-sky-300 rounded-2xl p-6 md:p-8 shadow-lg text-center transform transition-all duration-700">
                     <div class="w-16 h-16 md:w-20 md:h-20 mx-auto mb-3 bg-sky-100 text-sky-600 rounded-full flex items-center justify-center text-3xl md:text-4xl font-black shadow-inner">
                         🥈
                     </div>
@@ -92,7 +187,7 @@ export function renderAwardCeremony() {
                 </div>
 
                 <!-- 1위: 최우수상 (가운데, 가장 높음) -->
-                <div class="order-1 md:order-2 ceremony-card ${currentRevealedLevel >= 3 ? 'revealed scale-105 ring-4 ring-amber-400' : 'hidden-award'} bg-gradient-to-b from-amber-50 to-white border-2 border-amber-400 rounded-2xl p-8 md:p-10 shadow-2xl text-center transform transition-all duration-700 md:-translate-y-6">
+                <div class="order-1 md:order-2 ceremony-card ceremony-card-top ${currentRevealedLevel >= 3 ? 'revealed scale-105 ring-4 ring-amber-400' : 'hidden-award'} bg-gradient-to-b from-amber-50 to-white border-2 border-amber-400 rounded-2xl p-8 md:p-10 shadow-2xl text-center transform transition-all duration-700 md:-translate-y-6">
                     <div class="w-20 h-20 md:w-28 md:h-28 mx-auto mb-4 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center text-4xl md:text-6xl font-black shadow-inner animate-bounce">
                         👑
                     </div>
@@ -111,7 +206,7 @@ export function renderAwardCeremony() {
                 </div>
 
                 <!-- 3위: 장려상 (오른쪽) -->
-                <div class="order-3 md:order-3 ceremony-card ${currentRevealedLevel >= 1 ? 'revealed' : 'hidden-award'} bg-white border-2 border-emerald-300 rounded-2xl p-6 md:p-8 shadow-lg text-center transform transition-all duration-700">
+                <div class="order-3 md:order-3 ceremony-card ceremony-card-encouragement ${currentRevealedLevel >= 1 ? 'revealed' : 'hidden-award'} bg-white border-2 border-emerald-300 rounded-2xl p-6 md:p-8 shadow-lg text-center transform transition-all duration-700">
                     <div class="w-16 h-16 md:w-20 md:h-20 mx-auto mb-3 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-3xl md:text-4xl font-black shadow-inner">
                         🥉
                     </div>
@@ -144,6 +239,7 @@ export function handleNextReveal() {
     if (currentRevealedLevel > 3) {
         currentRevealedLevel = 3;
     }
+    updateCeremonyCards();
     if (currentRevealedLevel === 3) {
         triggerConfetti();
     }
@@ -151,4 +247,5 @@ export function handleNextReveal() {
 
 export function handleResetCeremony() {
     currentRevealedLevel = 0;
+    updateCeremonyCards();
 }

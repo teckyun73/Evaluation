@@ -32,7 +32,7 @@ import {
 import { renderEvaluationTable, renderColumnTotals, updateAutosaveBadge } from './ui/renderers/evaluationTable.js';
 import { renderAdminDashboard } from './ui/renderers/adminDashboard.js';
 import { renderAdminSettings, handleSaveConfig } from './ui/renderers/adminSettings.js';
-import { renderAwardCeremony, handleNextReveal, handleResetCeremony } from './ui/renderers/awardCeremony.js';
+import { renderAwardCeremony, handleNextReveal, handleResetCeremony, updateCeremonyCards } from './ui/renderers/awardCeremony.js';
 import { renderRadarAnalysis } from './ui/renderers/radarAnalysis.js';
 import { renderResults } from './ui/renderers/results.js';
 import { renderPresentationResults } from './ui/renderers/presentationResults.js';
@@ -265,11 +265,13 @@ async function onLoginSubmit() {
             const isAggregateTab = [
                 'results', 'detailed_results', 'final_results', 
                 'excellent_presenters', 'voter_detailed_results', 
-                'live_vote_status', 'presentation_results', 'radar_analysis', 'award_ceremony'
+                'live_vote_status', 'presentation_results', 'radar_analysis'
             ].includes(appState.activeTab);
 
             if (isAggregateTab) {
                 render();
+            } else if (appState.activeTab === 'award_ceremony') {
+                updateCeremonyCards();
             } else {
                 renderColumnTotals(appState.activeTab);
             }
@@ -289,7 +291,11 @@ async function onLoginSubmit() {
         }
 
         setupExcellentPresenterListener(() => {
-            render();
+            if (appState.activeTab === 'award_ceremony') {
+                updateCeremonyCards();
+            } else {
+                render();
+            }
             const adminDashboardSlot = document.getElementById('admin-dashboard-slot');
             if (adminDashboardSlot && adminDashboardSlot.style.display !== 'none') {
                 adminDashboardSlot.innerHTML = renderAdminDashboard();
@@ -570,16 +576,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 downloadChartAsPNG('radar-analysis-chart', `${selectedCat}_radar_analysis.png`);
             }
 
-            // 시상식 다음 공개 버튼
+            // 시상식 다음 공개 버튼 (전체화면 풀림 없이 내부 카드만 갱신)
             if (e.target.closest('#next-reveal-btn')) {
                 handleNextReveal();
-                render();
             }
 
-            // 시상식 초기화 버튼
+            // 시상식 초기화 버튼 (전체화면 풀림 없이 내부 카드만 갱신)
             if (e.target.closest('#reset-ceremony-btn')) {
                 handleResetCeremony();
-                render();
             }
 
             // 시상식 전체화면 모드 토글 버튼
@@ -639,11 +643,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // 변경 이벤트 (드롭다운)
         tabContent.addEventListener('change', (e) => {
-            if (e.target.id === 'category-select' || e.target.id === 'radar-category-select' || e.target.id === 'ceremony-category-select') {
+            if (e.target.id === 'ceremony-category-select') {
                 appState.setPresentationCategory(e.target.value);
-                if (e.target.id === 'ceremony-category-select') {
-                    handleResetCeremony();
-                }
+                handleResetCeremony();
+                return;
+            }
+
+            if (e.target.id === 'category-select' || e.target.id === 'radar-category-select') {
+                appState.setPresentationCategory(e.target.value);
                 render();
             }
 
@@ -703,7 +710,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 } else if (e.target.classList.contains('final-vote-score-cell')) {
                     const newVoteScore = parseInt(e.target.textContent, 10) || 0;
                     appState.finalResultsData[category][index].voteScore = newVoteScore;
-                } else if (e.target.classList.contains('final-award-cell')) {
+                } else if (e.target.contains && e.target.classList.contains('final-award-cell')) {
                     const newAward = e.target.textContent.trim();
                     appState.finalResultsData[category][index].award = newAward;
                 }
