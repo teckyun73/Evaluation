@@ -177,6 +177,41 @@ export function renderAwardCeremony(isStandalone = false) {
     const isMuted = soundEngine.isMuted;
     const categoryName = CATEGORY_DISPLAY_NAMES[selectedCategory] || '6S';
 
+    let controlsHtml = '';
+    if (!isStandalone) {
+        let categoryOptions = '';
+        Object.keys(presenters).forEach(cat => {
+            categoryOptions += `<option value="${cat}" ${cat === selectedCategory ? 'selected' : ''}>${CATEGORY_DISPLAY_NAMES[cat]} 부문</option>`;
+        });
+
+        controlsHtml = `
+            <div id="ceremony-controls-toolbar" class="ceremony-controls-wrapper flex flex-wrap items-center gap-2 md:gap-3">
+                <!-- 부문 선택 -->
+                <select id="ceremony-category-select" class="px-3.5 py-2 bg-white border border-slate-300 rounded-lg shadow-sm font-bold text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
+                    ${categoryOptions}
+                </select>
+
+                <!-- 사운드 효과음 토글 버튼 -->
+                <button id="toggle-ceremony-sound-btn" class="text-xs md:text-sm font-semibold px-3.5 py-2 ${isMuted ? 'bg-slate-300 text-slate-600' : 'bg-emerald-600 text-white'} rounded-lg transition shadow flex items-center gap-1">
+                    <span>${isMuted ? '🔇 음소거' : '🔊 효과음 ON'}</span>
+                </button>
+
+                <button id="reset-ceremony-btn" class="text-xs md:text-sm font-semibold px-3.5 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg transition">다시 진행</button>
+                <button id="open-ceremony-window-btn" class="text-xs md:text-sm font-bold px-3.5 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg shadow transition flex items-center gap-1.5" title="빔프로젝터/보조모니터 전용 별도 창 열기">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                    <span>🪟 별도 창 열기</span>
+                </button>
+                <button id="toggle-ceremony-fullscreen-btn" class="text-xs md:text-sm font-bold px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg shadow transition flex items-center gap-1.5">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>
+                    <span>📺 전체화면</span>
+                </button>
+                <button id="next-reveal-btn" class="text-xs md:text-sm font-black px-5 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg shadow-md transition flex items-center gap-1.5 animate-pulse">
+                    <span>✨ 다음 순위 공개</span>
+                </button>
+            </div>
+        `;
+    }
+
     let html = `
         <div id="award-ceremony-container" class="space-y-6 transition-all relative ${isStandalone ? 'standalone-stage' : ''}">
             <!-- 시상식 상단 컨트롤 바 / 무대 헤더 -->
@@ -188,43 +223,7 @@ export function renderAwardCeremony(isStandalone = false) {
                     </h2>
                     <p class="text-sm md:text-base text-slate-600 mt-1">영예의 수상자를 발표합니다.</p>
                 </div>
-                ${!isStandalone ? `
-                <div id="ceremony-controls-toolbar" class="flex flex-wrap items-center gap-2 md:gap-3">
-                    <!-- 부문 선택 -->
-                    <select id="ceremony-category-select" class="px-3.5 py-2 bg-white border border-slate-300 rounded-lg shadow-sm font-bold text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
-                ` : ''}
-    `;
-
-    if (!isStandalone) {
-        Object.keys(presenters).forEach(cat => {
-            html += `<option value="${cat}" ${cat === selectedCategory ? 'selected' : ''}>${CATEGORY_DISPLAY_NAMES[cat]} 부문</option>`;
-        });
-
-        html += `
-                    </select>
-
-                    <!-- 사운드 효과음 토글 버튼 -->
-                    <button id="toggle-ceremony-sound-btn" class="text-xs md:text-sm font-semibold px-3.5 py-2 ${isMuted ? 'bg-slate-300 text-slate-600' : 'bg-emerald-600 text-white'} rounded-lg transition shadow flex items-center gap-1">
-                        <span>${isMuted ? '🔇 음소거' : '🔊 효과음 ON'}</span>
-                    </button>
-
-                    <button id="reset-ceremony-btn" class="text-xs md:text-sm font-semibold px-3.5 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg transition">다시 진행</button>
-                    <button id="open-ceremony-window-btn" class="text-xs md:text-sm font-bold px-3.5 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg shadow transition flex items-center gap-1.5" title="빔프로젝터/보조모니터 전용 별도 창 열기">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
-                        <span>🪟 별도 창 열기</span>
-                    </button>
-                    <button id="toggle-ceremony-fullscreen-btn" class="text-xs md:text-sm font-bold px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg shadow transition flex items-center gap-1.5">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>
-                        <span>📺 전체화면</span>
-                    </button>
-                    <button id="next-reveal-btn" class="text-xs md:text-sm font-black px-5 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg shadow-md transition flex items-center gap-1.5 animate-pulse">
-                        <span>✨ 다음 순위 공개</span>
-                    </button>
-                </div>
-        `;
-    }
-
-    html += `
+                ${controlsHtml}
             </div>
 
             <!-- 시상대 연출 컨테이너 -->
