@@ -587,7 +587,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 handleResetCeremony();
             }
 
-            // 시상식 사운드 효과음 토글 버튼 (음소거 해제 시 BGM 상태 자동 동기화)
+            // 시상식 사운드 효과음 토글 버튼
             const soundBtn = e.target.closest('#toggle-ceremony-sound-btn');
             if (soundBtn) {
                 const { isMuted, isBgmPlaying } = await soundEngine.toggleMute();
@@ -605,6 +605,10 @@ document.addEventListener('DOMContentLoaded', () => {
             // 시상식 배경음악(BGM) 토글 버튼
             const bgmBtn = e.target.closest('#toggle-ceremony-bgm-btn');
             if (bgmBtn) {
+                const themeSelect = document.getElementById('ceremony-bgm-theme-select');
+                if (themeSelect) {
+                    soundEngine.currentTheme = themeSelect.value;
+                }
                 const isPlaying = await soundEngine.toggleBgm();
                 bgmBtn.className = `text-xs md:text-sm font-semibold px-3 py-2 ${isPlaying ? 'bg-purple-600 text-white' : 'bg-white border border-slate-300 text-slate-700'} rounded-lg transition shadow flex items-center gap-1`;
                 bgmBtn.innerHTML = `<span>${isPlaying ? '🎵 BGM 정지' : '🎶 BGM 재생'}</span>`;
