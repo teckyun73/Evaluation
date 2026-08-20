@@ -172,29 +172,35 @@ export function updateCeremonyCards() {
     }
 }
 
-export function renderAwardCeremony() {
+export function renderAwardCeremony(isStandalone = false) {
     const { topWinner, runnerUp, encouragementWinners, selectedCategory, presenters } = getCeremonyCardsData();
     const isMuted = soundEngine.isMuted;
+    const categoryName = CATEGORY_DISPLAY_NAMES[selectedCategory] || '6S';
 
     let html = `
-        <div id="award-ceremony-container" class="space-y-6 transition-all relative">
-            <!-- 시상식 상단 컨트롤 바 -->
-            <div class="p-4 md:p-5 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-sky-500/10 border border-amber-200 rounded-2xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div>
-                    <span class="text-xs font-extrabold tracking-widest text-amber-600 uppercase bg-amber-100 px-3 py-1 rounded-full">AWARD CEREMONY</span>
-                    <h2 class="text-2xl md:text-3xl font-black text-slate-900 mt-2">2026 경영혁신 경진대회 시상식</h2>
-                    <p class="text-sm text-slate-600 mt-0.5">부문별 영예의 수상자를 순차적으로 발표합니다.</p>
+        <div id="award-ceremony-container" class="space-y-6 transition-all relative ${isStandalone ? 'standalone-stage' : ''}">
+            <!-- 시상식 상단 컨트롤 바 / 무대 헤더 -->
+            <div class="p-5 md:p-6 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-sky-500/10 border border-amber-200 rounded-2xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4 ${isStandalone ? 'text-center justify-center' : ''}">
+                <div class="${isStandalone ? 'w-full text-center' : ''}">
+                    <span class="text-xs font-extrabold tracking-widest text-amber-600 uppercase bg-amber-100 px-3.5 py-1 rounded-full shadow-sm">AWARD CEREMONY</span>
+                    <h2 class="text-2xl md:text-4xl font-black text-slate-900 mt-2">
+                        2026 경영혁신 경진대회 시상식 ${isStandalone ? `<span class="text-amber-600 font-extrabold ml-2">(${categoryName} 부문)</span>` : ''}
+                    </h2>
+                    <p class="text-sm md:text-base text-slate-600 mt-1">영예의 수상자를 발표합니다.</p>
                 </div>
-                <div class="flex flex-wrap items-center gap-2 md:gap-3">
+                ${!isStandalone ? `
+                <div id="ceremony-controls-toolbar" class="flex flex-wrap items-center gap-2 md:gap-3">
                     <!-- 부문 선택 -->
                     <select id="ceremony-category-select" class="px-3.5 py-2 bg-white border border-slate-300 rounded-lg shadow-sm font-bold text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
+                ` : ''}
     `;
 
-    Object.keys(presenters).forEach(cat => {
-        html += `<option value="${cat}" ${cat === selectedCategory ? 'selected' : ''}>${CATEGORY_DISPLAY_NAMES[cat]} 부문</option>`;
-    });
+    if (!isStandalone) {
+        Object.keys(presenters).forEach(cat => {
+            html += `<option value="${cat}" ${cat === selectedCategory ? 'selected' : ''}>${CATEGORY_DISPLAY_NAMES[cat]} 부문</option>`;
+        });
 
-    html += `
+        html += `
                     </select>
 
                     <!-- 사운드 효과음 토글 버튼 -->
@@ -215,6 +221,10 @@ export function renderAwardCeremony() {
                         <span>✨ 다음 순위 공개</span>
                     </button>
                 </div>
+        `;
+    }
+
+    html += `
             </div>
 
             <!-- 시상대 연출 컨테이너 -->

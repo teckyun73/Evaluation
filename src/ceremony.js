@@ -23,13 +23,8 @@ function renderStandaloneCeremony() {
     const root = document.getElementById('ceremony-standalone-root');
     if (!root) return;
 
-    root.innerHTML = renderAwardCeremony();
-    
-    // 별도 창에서는 '별도 창으로 열기' 버튼 숨김 처리
-    const popoutBtn = root.querySelector('#open-ceremony-window-btn');
-    if (popoutBtn) {
-        popoutBtn.style.display = 'none';
-    }
+    // isStandalone = true 전달하여 운영용 기능 박스들(부문선택, 효과음, 다시진행, 전체화면, 다음순위공개) 완전 숨김
+    root.innerHTML = renderAwardCeremony(true);
 }
 
 async function initCeremony() {
