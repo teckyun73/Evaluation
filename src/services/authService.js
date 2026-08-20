@@ -100,8 +100,8 @@ export async function login(role, id, password) {
     
     // 3. 관리자 인증 (단방향 해시 암호화 검증)
     if (role === 'admin') {
-        if (trimmedId !== 'admin') {
-            throw new Error('관리자 아이디가 일치하지 않습니다.');
+        if (trimmedId && trimmedId.toLowerCase() !== 'admin') {
+            throw new Error('관리자 아이디가 일치하지 않습니다. (admin 입력)');
         }
 
         const targetAdminHash = remoteCreds?.adminPasswordHash || DEFAULT_ADMIN_HASH;

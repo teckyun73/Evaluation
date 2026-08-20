@@ -6,7 +6,9 @@
 const SYSTEM_SALT = "Evaluation_2026_Salt_#Secure";
 
 // 기본 기본 해시값 (평문 비밀번호는 소스코드에 전혀 존재하지 않음)
-export const DEFAULT_ADMIN_HASH = "da2724ad81da8be35cb48b74f7064f9cc51357406a68c7901ae75250bb959104";
+// 관리자 기본 비밀번호 ($atec@000$)의 정확한 SHA-256 + Salt 해시
+export const DEFAULT_ADMIN_HASH = "42afd36c4e73418240a7029482dc9b967e0140ad63cd8d3ef0015ee2fd527fbd";
+// 평가자 기본 비밀번호 (atec1114)의 정확한 SHA-256 + Salt 해시
 export const DEFAULT_EVALUATOR_HASH = "cfd3d484d23d9e67c2b3690d7b3de9152a83a85110aad0e78d15e7af1a046a75";
 
 /**

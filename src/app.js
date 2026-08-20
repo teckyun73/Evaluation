@@ -357,7 +357,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (role === 'evaluator') {
             if (roleEvaluatorBtn) roleEvaluatorBtn.classList.add('active');
             if (loginIdLabel) loginIdLabel.textContent = '성명';
-            if (loginIdInput) loginIdInput.placeholder = '성명 (예: 홍길동)';
+            if (loginIdInput) {
+                loginIdInput.placeholder = '성명 (예: 홍길동)';
+                if (loginIdInput.value === 'admin') loginIdInput.value = '';
+            }
             if (passwordLabel) passwordLabel.textContent = '비밀번호';
             if (loginPasswordInput) {
                 loginPasswordInput.placeholder = '평가자 비밀번호';
@@ -366,7 +369,10 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (role === 'voter') {
             if (roleVoterBtn) roleVoterBtn.classList.add('active');
             if (loginIdLabel) loginIdLabel.textContent = '성명';
-            if (loginIdInput) loginIdInput.placeholder = '성명 (예: 홍길동)';
+            if (loginIdInput) {
+                loginIdInput.placeholder = '성명 (예: 홍길동)';
+                if (loginIdInput.value === 'admin') loginIdInput.value = '';
+            }
             if (passwordLabel) passwordLabel.textContent = '이메일';
             if (loginPasswordInput) {
                 loginPasswordInput.placeholder = '이메일 (예: gildong@atec.co.kr)';
@@ -375,7 +381,10 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (role === 'admin') {
             if (roleAdminBtn) roleAdminBtn.classList.add('active');
             if (loginIdLabel) loginIdLabel.textContent = '관리자 ID';
-            if (loginIdInput) loginIdInput.placeholder = 'admin';
+            if (loginIdInput) {
+                loginIdInput.placeholder = 'admin';
+                loginIdInput.value = 'admin';
+            }
             if (passwordLabel) passwordLabel.textContent = '비밀번호';
             if (loginPasswordInput) {
                 loginPasswordInput.placeholder = '관리자 비밀번호';
