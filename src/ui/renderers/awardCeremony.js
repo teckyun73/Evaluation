@@ -1,6 +1,6 @@
 /**
  * awardCeremony.js
- * 시상식 순차 공개(Award Ceremony Reveal), 축하 컨페티 효과, 5가지 고음질 오케스트라 BGM 선택 및 전체화면(Fullscreen) 모듈
+ * 시상식 순차 공개(Award Ceremony Reveal), 축하 컨페티 효과, 5가지 고음질 오케스트라 BGM 및 실제 MP3 효과음 모듈
  */
 
 import { CATEGORY_DISPLAY_NAMES } from '../../config/constants.js';
@@ -291,15 +291,15 @@ export function handleNextReveal() {
     }
 
     if (currentRevealedLevel === 1 || currentRevealedLevel === 2) {
-        // 장려상 / 우수상: 실제 드럼롤 후 승리의 팡파레
-        soundEngine.playDrumRoll(0.5);
+        // 장려상 / 우수상: 실제 어쿠스틱 드럼롤 MP3 -> 카드 오픈 -> 실제 트럼펫 팡파레 MP3
+        soundEngine.playDrumRoll();
         setTimeout(() => {
             updateCeremonyCards();
             soundEngine.playRevealFanfare();
-        }, 500);
+        }, 600);
     } else if (currentRevealedLevel === 3) {
-        // 최우수상: 실제 드럼롤 후 대형 브라스 팡파레 + 기립 박수갈채 + 대형 폭죽 발사!
-        soundEngine.playDrumRoll(0.9);
+        // 최우수상: 실제 어쿠스틱 드럼롤 MP3 -> 카드 오픈 -> 실제 대형 승리 팡파레 MP3 + 수백 명 기립 박수/환호 MP3 + 대형 폭죽
+        soundEngine.playDrumRoll();
         setTimeout(() => {
             updateCeremonyCards();
             soundEngine.playGrandFanfareWithCheer();

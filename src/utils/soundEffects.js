@@ -1,7 +1,15 @@
 /**
  * soundEffects.js
- * 시상식 전용 5가지 클래식 오케스트라 전곡 풀 스코어(Full Symphony Score) 및 실시간 겹침 방지 엔진
+ * 시상식 전용 실제 오케스트라 실황 고음질 MP3 효과음 & BGM 엔진
  */
+
+// 로컬 프로젝트 고음질 실제 MP3 에셋 경로
+const SFX_FILES = {
+    drumroll: './assets/audio/drumroll.mp3',      // 실제 어쿠스틱 스네어 드럼 롤
+    tada: './assets/audio/tada.mp3',              // 실제 브라스 트럼펫 팡파레 (장려/우수상)
+    victory: './assets/audio/victory.mp3',        // 실제 웅장한 대형 승리 팡파레 (최우수상)
+    applause: './assets/audio/applause.mp3'       // 실제 수백 명의 기립 박수갈채 & 환호성
+};
 
 class SoundEngine {
     constructor() {
@@ -13,6 +21,19 @@ class SoundEngine {
         this.activeBgmNodes = [];
         this.bgmMasterGain = null;
         this.bgmTimer = null;
+
+        // 실제 MP3 오디오 객체 풀
+        this.sfxAudios = {};
+        this.initSfxAudioElements();
+    }
+
+    initSfxAudioElements() {
+        Object.entries(SFX_FILES).forEach(([key, path]) => {
+            const audio = new Audio(path);
+            audio.preload = 'auto';
+            audio.volume = 0.9;
+            this.sfxAudios[key] = audio;
+        });
     }
 
     async init() {
@@ -49,7 +70,6 @@ class SoundEngine {
             this.bgmTimer = null;
         }
 
-        // 기존 예약된 모든 오실레이터 및 게인 즉시 파기 (소리 겹침 100% 방지)
         if (this.activeBgmNodes && this.activeBgmNodes.length > 0) {
             this.activeBgmNodes.forEach(node => {
                 try {
@@ -75,10 +95,12 @@ class SoundEngine {
             if (this.bgmMasterGain && this.ctx) {
                 this.bgmMasterGain.gain.setValueAtTime(0, this.ctx.currentTime);
             }
+            Object.values(this.sfxAudios).forEach(a => { if (a) a.muted = true; });
         } else {
             if (this.bgmMasterGain && this.ctx) {
                 this.bgmMasterGain.gain.setValueAtTime(1, this.ctx.currentTime);
             }
+            Object.values(this.sfxAudios).forEach(a => { if (a) a.muted = false; });
             if (this.wasBgmPlayingBeforeMute) {
                 this.wasBgmPlayingBeforeMute = false;
                 this.startBgm();
@@ -91,135 +113,69 @@ class SoundEngine {
     setTheme(themeKey) {
         this.currentTheme = themeKey;
         if (this.isBgmPlaying) {
-            // 기존 재생 중인 곡을 즉시 깨끗하게 정지하고 새 곡으로 즉시 시작
             this.clearActiveBgmNotes();
             this.playFullScoreTheme(this.currentTheme);
         }
     }
 
-    // 1. 긴장감 넘치는 실제 타악기 스네어 드럼롤
-    async playDrumRoll(duration = 1.0) {
+    // =========================================================================
+    // 실제 MP3 효과음 (SFX) 재생 함수들
+    // =========================================================================
+
+    // 1. 긴장감 드럼롤: 실제 어쿠스틱 스네어 드럼 롤 타악기 MP3
+    playDrumRoll() {
         if (this.isMuted) return;
-        await this.init();
-        if (!this.ctx) return;
+        const audio = this.sfxAudios.drumroll;
+        if (audio) {
+            audio.currentTime = 0;
+            audio.volume = 0.95;
+            audio.muted = false;
+            audio.play().catch(e => console.warn("Drumroll play error:", e));
+        }
+    }
 
-        const now = this.ctx.currentTime;
-        const rollCount = Math.floor(duration * 26);
-        const interval = duration / rollCount;
+    // 2. 순위 공개 팡파레: 실제 금관악기 트럼펫 팡파레 MP3 (장려상/우수상용)
+    playRevealFanfare() {
+        if (this.isMuted) return;
+        const audio = this.sfxAudios.tada;
+        if (audio) {
+            audio.currentTime = 0;
+            audio.volume = 0.95;
+            audio.muted = false;
+            audio.play().catch(e => console.warn("Tada fanfare play error:", e));
+        }
+    }
 
-        for (let i = 0; i < rollCount; i++) {
-            const time = now + (i * interval);
-            const volume = 0.15 + (i / rollCount) * 0.55;
+    // 3. 최우수상 피날레: 실제 대형 승리 팡파레 MP3 + 수백 명의 우레와 같은 기립 박수갈채 & 환호성 MP3
+    playGrandFanfareWithCheer() {
+        if (this.isMuted) return;
 
-            const bufferSize = this.ctx.sampleRate * 0.05;
-            const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
-            const data = buffer.getChannelData(0);
-            for (let j = 0; j < bufferSize; j++) {
-                data[j] = (Math.random() * 2 - 1) * Math.exp(-j / (bufferSize * 0.25));
+        const victory = this.sfxAudios.victory;
+        const applause = this.sfxAudios.applause;
+
+        if (victory) {
+            victory.currentTime = 0;
+            victory.volume = 1.0;
+            victory.muted = false;
+            victory.play().catch(e => console.warn("Victory fanfare error:", e));
+        }
+
+        // 팡파레와 함께 울려 퍼지는 실제 수백 명의 기립 박수 & 환호성
+        setTimeout(() => {
+            if (applause && !this.isMuted) {
+                applause.currentTime = 0;
+                applause.volume = 0.9;
+                applause.muted = false;
+                applause.play().catch(e => console.warn("Applause cheer error:", e));
             }
-
-            const noise = this.ctx.createBufferSource();
-            noise.buffer = buffer;
-
-            const filter = this.ctx.createBiquadFilter();
-            filter.type = 'bandpass';
-            filter.frequency.value = 650 + (i * 20);
-            filter.Q.value = 1.2;
-
-            const gain = this.ctx.createGain();
-            gain.gain.setValueAtTime(volume, time);
-            gain.gain.exponentialRampToValueAtTime(0.001, time + 0.05);
-
-            noise.connect(filter);
-            filter.connect(gain);
-            gain.connect(this.ctx.destination);
-
-            noise.start(time);
-            noise.stop(time + 0.05);
-        }
+        }, 500);
     }
 
-    // 2. 우수상 / 장려상용 승리의 브라스 팡파레
-    async playRevealFanfare() {
-        if (this.isMuted) return;
-        await this.init();
-        if (!this.ctx) return;
+    // =========================================================================
+    // BGM 전곡 풀 스코어 오케스트레이션 재생
+    // =========================================================================
 
-        const now = this.ctx.currentTime;
-        const notes = [
-            { freq: 523.25, time: 0.0, dur: 0.18 }, // C5
-            { freq: 659.25, time: 0.18, dur: 0.18 }, // E5
-            { freq: 783.99, time: 0.36, dur: 0.25 }, // G5
-            { freq: 1046.50, time: 0.61, dur: 0.8 }  // C6
-        ];
-
-        notes.forEach(({ freq, time, dur }) => {
-            this.playBrassNote(freq, now + time, dur, 0.45, false);
-        });
-    }
-
-    // 3. 최우수상용 웅장한 대형 오케스트라 팡파레 + 박수갈채
-    async playGrandFanfareWithCheer() {
-        if (this.isMuted) return;
-        await this.init();
-        if (!this.ctx) return;
-
-        const now = this.ctx.currentTime;
-        const fanfareNotes = [
-            { freq: 523.25, time: 0.0, dur: 0.15 },
-            { freq: 523.25, time: 0.15, dur: 0.15 },
-            { freq: 523.25, time: 0.30, dur: 0.15 },
-            { freq: 659.25, time: 0.45, dur: 0.35 },
-            { freq: 523.25, time: 0.80, dur: 0.15 },
-            { freq: 659.25, time: 0.95, dur: 0.15 },
-            { freq: 783.99, time: 1.10, dur: 0.35 },
-            { freq: 1046.50, time: 1.45, dur: 1.6 }
-        ];
-
-        fanfareNotes.forEach(({ freq, time, dur }) => {
-            this.playBrassNote(freq, now + time, dur, 0.55, false);
-            this.playBrassNote(freq * 0.5, now + time, dur, 0.4, false);
-        });
-
-        this.playApplause(now + 1.0, 4.5);
-    }
-
-    // 박수갈채 생성기
-    playApplause(startTime, duration = 4.0) {
-        if (!this.ctx) return;
-        const bufferSize = this.ctx.sampleRate * duration;
-        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
-        const data = buffer.getChannelData(0);
-
-        for (let i = 0; i < bufferSize; i++) {
-            const noise = (Math.random() * 2 - 1);
-            const clapImpulse = Math.random() > 0.85 ? 1.5 : 0.3;
-            const envelope = Math.sin((i / bufferSize) * Math.PI);
-            data[i] = noise * clapImpulse * envelope;
-        }
-
-        const noiseNode = this.ctx.createBufferSource();
-        noiseNode.buffer = buffer;
-
-        const filter = this.ctx.createBiquadFilter();
-        filter.type = 'bandpass';
-        filter.frequency.value = 1400;
-        filter.Q.value = 1.2;
-
-        const gainNode = this.ctx.createGain();
-        gainNode.gain.setValueAtTime(0.5, startTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
-
-        noiseNode.connect(filter);
-        filter.connect(gainNode);
-        gainNode.connect(this.ctx.destination);
-
-        noiseNode.start(startTime);
-        noiseNode.stop(startTime + duration);
-    }
-
-    // 금관 브라스 사운드 합성
-    playBrassNote(freq, time, duration, volume = 0.4, isBgm = true) {
+    playBrassNote(freq, time, duration, volume = 0.4) {
         if (!this.ctx) return;
         const osc1 = this.ctx.createOscillator();
         const osc2 = this.ctx.createOscillator();
@@ -243,21 +199,21 @@ class SoundEngine {
         osc2.connect(filter);
         filter.connect(gain);
 
-        const targetDest = (isBgm && this.bgmMasterGain) ? this.bgmMasterGain : this.ctx.destination;
-        gain.connect(targetDest);
+        if (this.bgmMasterGain) {
+            gain.connect(this.bgmMasterGain);
+        } else {
+            gain.connect(this.ctx.destination);
+        }
 
         osc1.start(time);
         osc2.start(time);
         osc1.stop(time + duration);
         osc2.stop(time + duration);
 
-        if (isBgm) {
-            this.activeBgmNodes.push(osc1, osc2, gain);
-        }
+        this.activeBgmNodes.push(osc1, osc2, gain);
     }
 
-    // 현악 스트링 사운드 합성
-    playStringNote(freq, time, duration, volume = 0.25, isBgm = true) {
+    playStringNote(freq, time, duration, volume = 0.25) {
         if (!this.ctx) return;
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
@@ -276,19 +232,19 @@ class SoundEngine {
         osc.connect(filter);
         filter.connect(gain);
 
-        const targetDest = (isBgm && this.bgmMasterGain) ? this.bgmMasterGain : this.ctx.destination;
-        gain.connect(targetDest);
+        if (this.bgmMasterGain) {
+            gain.connect(this.bgmMasterGain);
+        } else {
+            gain.connect(this.ctx.destination);
+        }
 
         osc.start(time);
         osc.stop(time + duration);
 
-        if (isBgm) {
-            this.activeBgmNodes.push(osc, gain);
-        }
+        this.activeBgmNodes.push(osc, gain);
     }
 
-    // 목관/벨 멜로디 사운드 합성
-    playMelodyNote(freq, time, duration, volume = 0.35, isBgm = true) {
+    playMelodyNote(freq, time, duration, volume = 0.35) {
         if (!this.ctx) return;
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
@@ -302,19 +258,19 @@ class SoundEngine {
 
         osc.connect(gain);
 
-        const targetDest = (isBgm && this.bgmMasterGain) ? this.bgmMasterGain : this.ctx.destination;
-        gain.connect(targetDest);
+        if (this.bgmMasterGain) {
+            gain.connect(this.bgmMasterGain);
+        } else {
+            gain.connect(this.ctx.destination);
+        }
 
         osc.start(time);
         osc.stop(time + duration);
 
-        if (isBgm) {
-            this.activeBgmNodes.push(osc, gain);
-        }
+        this.activeBgmNodes.push(osc, gain);
     }
 
-    // 오케스트라 묵직한 베이스 사운드
-    playBassNote(freq, time, duration, volume = 0.45, isBgm = true) {
+    playBassNote(freq, time, duration, volume = 0.45) {
         if (!this.ctx) return;
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
@@ -328,18 +284,18 @@ class SoundEngine {
 
         osc.connect(gain);
 
-        const targetDest = (isBgm && this.bgmMasterGain) ? this.bgmMasterGain : this.ctx.destination;
-        gain.connect(targetDest);
+        if (this.bgmMasterGain) {
+            gain.connect(this.bgmMasterGain);
+        } else {
+            gain.connect(this.ctx.destination);
+        }
 
         osc.start(time);
         osc.stop(time + duration);
 
-        if (isBgm) {
-            this.activeBgmNodes.push(osc, gain);
-        }
+        this.activeBgmNodes.push(osc, gain);
     }
 
-    // 4. BGM 토글
     async toggleBgm() {
         await this.init();
         if (this.isBgmPlaying) {
@@ -366,18 +322,15 @@ class SoundEngine {
         this.clearActiveBgmNotes();
     }
 
-    // =========================================================================
-    // 5가지 클래식 오케스트라 원곡 풀 스코어 악보 (Full Score Orchestration)
-    // =========================================================================
     playFullScoreTheme(themeKey) {
         if (!this.isBgmPlaying || !this.ctx) return;
         const now = this.ctx.currentTime;
 
         switch (themeKey) {
-            // 1. 🏛️ 에드워드 엘가: 위풍당당 행진곡 제1번
+            // 1. 위풍당당 행진곡 (엘가)
             case 'symphony': {
                 const bpm = 80;
-                const beat = 60 / bpm; // 0.75s
+                const beat = 60 / bpm;
 
                 const melodyScore = [
                     { f: 392.00, t: 0, d: 2 }, { f: 440.00, t: 2, d: 2 }, { f: 493.88, t: 4, d: 3 }, { f: 523.25, t: 7, d: 1 },
@@ -416,10 +369,10 @@ class SoundEngine {
                 break;
             }
 
-            // 2. 🏆 조르주 비제: 카르멘 모음곡 '투우사의 행진'
+            // 2. 투우사의 행진 (비제)
             case 'victory': {
                 const bpm = 116;
-                const beat = 60 / bpm; // 0.517s
+                const beat = 60 / bpm;
 
                 const melodyScore = [
                     { f: 440.00, t: 0, d: 2 }, { f: 369.99, t: 2, d: 1 }, { f: 392.00, t: 3, d: 1 }, { f: 440.00, t: 4, d: 2 }, { f: 587.33, t: 6, d: 2 },
@@ -446,10 +399,10 @@ class SoundEngine {
                 break;
             }
 
-            // 3. ✨ 요한 파헬벨: 캐논 변주곡 오케스트라
+            // 3. 캐논 변주곡 (파헬벨)
             case 'emotion': {
                 const bpm = 72;
-                const beat = 60 / bpm; // 0.833s
+                const beat = 60 / bpm;
 
                 const baseProgression = [
                     { b: 146.83, chord: [293.66, 369.99, 440.00] },
@@ -494,10 +447,10 @@ class SoundEngine {
                 break;
             }
 
-            // 4. 🌌 루트비히 판 베토벤: 교향곡 제9번 '환희의 송가'
+            // 4. 환희의 송가 (베토벤)
             case 'glory': {
                 const bpm = 104;
-                const beat = 60 / bpm; // 0.576s
+                const beat = 60 / bpm;
 
                 const fullOdeScore = [
                     659.25, 659.25, 698.46, 783.99, 783.99, 698.46, 659.25, 587.33,
@@ -526,10 +479,10 @@ class SoundEngine {
                 break;
             }
 
-            // 5. 🥁 구스타프 홀스트: 행성 모음곡 '화성' 서스펜스
+            // 5. 행성 '화성' 서스펜스 (홀스트)
             case 'suspense': {
                 const bpm = 120;
-                const beat = 60 / bpm; // 0.5s
+                const beat = 60 / bpm;
 
                 for (let measure = 0; measure < 8; measure++) {
                     const mTime = measure * 5 * beat;
