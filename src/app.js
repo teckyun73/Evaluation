@@ -76,14 +76,14 @@ export function updateUIVisibility() {
     });
 
     if (appState.currentUserRole === 'admin') {
-        if (simBtn) simBtn.style.display = 'inline-block';
-        if (exportBtn) exportBtn.style.display = 'inline-block';
-        if (backupJsonBtn) backupJsonBtn.style.display = 'inline-block';
-        if (restoreJsonBtn) restoreJsonBtn.style.display = 'inline-block';
-        if (printBtn) printBtn.style.display = 'inline-block';
-        if (resetSimBtn) resetSimBtn.style.display = 'inline-block';
-        if (fullResetBtn) fullResetBtn.style.display = 'inline-block';
-        if (saveLogoutBtn) saveLogoutBtn.style.display = 'inline-block';
+        if (simBtn) simBtn.style.display = 'inline-flex';
+        if (exportBtn) exportBtn.style.display = 'inline-flex';
+        if (backupJsonBtn) backupJsonBtn.style.display = 'inline-flex';
+        if (restoreJsonBtn) restoreJsonBtn.style.display = 'inline-flex';
+        if (printBtn) printBtn.style.display = 'inline-flex';
+        if (resetSimBtn) resetSimBtn.style.display = 'inline-flex';
+        if (fullResetBtn) fullResetBtn.style.display = 'inline-flex';
+        if (saveLogoutBtn) saveLogoutBtn.style.display = 'inline-flex';
         allTabs.forEach(tab => tab.style.display = 'inline-flex');
 
         if (adminDashboardSlot) {
@@ -91,7 +91,7 @@ export function updateUIVisibility() {
             adminDashboardSlot.style.display = 'block';
         }
     } else if (appState.currentUserRole === 'voter') {
-        if (saveLogoutBtn) saveLogoutBtn.style.display = 'inline-block';
+        if (saveLogoutBtn) saveLogoutBtn.style.display = 'inline-flex';
         if (adminDashboardSlot) adminDashboardSlot.style.display = 'none';
         
         const voterVisibleTabs = ['excellent_presenters', 'live_vote_status'];
@@ -107,7 +107,7 @@ export function updateUIVisibility() {
             if (firstVoterTab) firstVoterTab.click();
         }
     } else if (appState.currentUserRole === 'evaluator') {
-        if (saveLogoutBtn) saveLogoutBtn.style.display = 'inline-block';
+        if (saveLogoutBtn) saveLogoutBtn.style.display = 'inline-flex';
         if (adminDashboardSlot) adminDashboardSlot.style.display = 'none';
         
         const evaluatorHiddenTabs = [

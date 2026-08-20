@@ -10,6 +10,19 @@ body {
 }
 
 /* ==========================================================================
+   Toolbar Header Buttons (Consistent Height & Alignment)
+   ========================================================================== */
+.toolbar-btn {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    height: 38px;
+    line-height: 1;
+    vertical-align: middle;
+}
+
+/* ==========================================================================
    Tab Navigation & Role Buttons
    ========================================================================== */
 .tab-button {
