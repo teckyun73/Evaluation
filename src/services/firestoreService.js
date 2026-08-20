@@ -290,76 +290,114 @@ export async function resetVoterSessions() {
 }
 
 /**
- * 가상 평가 및 투표 시뮬레이션
+ * 가상 평가 및 투표 시뮬레이션 (고속 writeBatch 청크 엔진)
  */
 export async function runSimulation() {
     const db = getDb();
-    const simulatedEvaluators = Array.from({ length: 6 }, () => `sim-evaluator-${generateUUID()}`);
+    const batchList = [];
+    let currentBatch = writeBatch(db);
+    let opCount = 0;
 
-    const scorePromises = [];
-    const submissionPromises = [];
-
-    for (const userId of simulatedEvaluators) {
-        for (const category in appState.presenters) {
-            const categoryPresenters = appState.presenters[category];
-            const criteria = appState.evaluationCriteria[category] || [];
-
-            for (const presenter of categoryPresenters) {
-                const docRef = doc(db, `/artifacts/${appId}/public/data/scores`, presenter.id);
-                for (const criterion of criteria) {
-                    const score = Math.floor(Math.random() * (criterion.maxScore - 5)) + 5;
-                    const payload = {
-                        [`scores.${userId}.${criterion.key}`]: score,
-                        updatedAt: serverTimestamp()
-                    };
-                    const baseData = {
-                        presenterId: presenter.id,
-                        updatedAt: serverTimestamp()
-                    };
-
-                    scorePromises.push(
-                        setDoc(docRef, baseData, { merge: true }).then(() => updateDoc(docRef, payload))
-                    );
-                }
-            }
+    function addOp(opFn) {
+        opFn(currentBatch);
+        opCount++;
+        if (opCount >= 400) { // Firestore batch 최대 500개 한도 안전 분할
+            batchList.push(currentBatch.commit());
+            currentBatch = writeBatch(db);
+            opCount = 0;
         }
+    }
 
-        const subDocRef = doc(db, `/artifacts/${appId}/public/data/submissions`, userId);
-        const subData = { evaluatorName: userId };
+    // 1. 가상 평가자 6명의 점수 생성
+    const simulatedEvaluators = Array.from({ length: 6 }, () => `sim-evaluator-${generateUUID().substring(0, 8)}`);
+
+    for (const presenterCat in appState.presenters) {
+        const catPresenters = appState.presenters[presenterCat];
+        const criteria = appState.evaluationCriteria[presenterCat] || [];
+
+        for (const presenter of catPresenters) {
+            const docRef = doc(db, `/artifacts/${appId}/public/data/scores`, presenter.id);
+            const scorePayload = {};
+
+            simulatedEvaluators.forEach(evalId => {
+                const evalScores = {};
+                criteria.forEach(c => {
+                    const max = parseInt(c.max, 10) || 20;
+                    // 현실적인 70~100% 점수 분포
+                    evalScores[c.key] = Math.floor(Math.random() * (max * 0.3)) + Math.floor(max * 0.7);
+                });
+                scorePayload[`scores.${evalId}`] = evalScores;
+            });
+
+            addOp(b => b.set(docRef, { 
+                presenterId: presenter.id, 
+                ...scorePayload, 
+                updatedAt: serverTimestamp() 
+            }, { merge: true }));
+        }
+    }
+
+    // 2. 가상 평가자 부문별 제출 상태 생성
+    for (const evalId of simulatedEvaluators) {
+        const subDocRef = doc(db, `/artifacts/${appId}/public/data/submissions`, evalId);
+        const subData = { 
+            evaluatorName: evalId,
+            updatedAt: serverTimestamp()
+        };
         Object.keys(appState.presenters).forEach(cat => {
             subData[cat] = true;
         });
-        submissionPromises.push(setDoc(subDocRef, subData, { merge: true }));
+        addOp(b => b.set(subDocRef, subData, { merge: true }));
     }
 
+    // 3. 가상 투표자 투표 데이터 생성 (설정된 TOTAL_VOTERS 기준)
     const totalVoters = appState.eventInfo?.TOTAL_VOTERS || 200;
-    const simulatedVoterIds = Array.from({ length: totalVoters }, () => `sim-voter-${generateUUID()}`);
-    const votePromises = [];
-
-    for (const userId of simulatedVoterIds) {
-        const docRef = doc(db, `/artifacts/${appId}/public/data/excellent_presenter_selections`, userId);
+    for (let i = 0; i < totalVoters; i++) {
+        const voterId = `sim-voter-${(i + 1).toString().padStart(4, '0')}`;
+        const docRef = doc(db, `/artifacts/${appId}/public/data/excellent_presenter_selections`, voterId);
         const selections = {};
+
         for (const category in appState.presenters) {
-            const categoryPresenters = appState.presenters[category];
-            if (categoryPresenters.length > 0) {
-                const randomIndex = Math.floor(Math.random() * categoryPresenters.length);
-                selections[category] = categoryPresenters[randomIndex].name;
+            const catPresenters = appState.presenters[category];
+            if (catPresenters.length > 0) {
+                const randomIdx = Math.floor(Math.random() * catPresenters.length);
+                selections[category] = catPresenters[randomIdx].name;
             }
         }
-        votePromises.push(
-            setDoc(docRef, { evaluatorName: userId, selections, submitted: true }, { merge: true })
-        );
+
+        addOp(b => b.set(docRef, {
+            evaluatorName: voterId,
+            selections,
+            submitted: true,
+            updatedAt: serverTimestamp()
+        }, { merge: true }));
     }
 
-    await Promise.all([...scorePromises, ...submissionPromises, ...votePromises]);
+    if (opCount > 0) {
+        batchList.push(currentBatch.commit());
+    }
+
+    await Promise.all(batchList);
 }
 
 /**
- * 시뮬레이션 데이터 초기화
+ * 시뮬레이션 데이터 초기화 (청크 분할 배치)
  */
 export async function resetSimulationData() {
     const db = getDb();
-    const batch = writeBatch(db);
+    const batchList = [];
+    let currentBatch = writeBatch(db);
+    let opCount = 0;
+
+    function addOp(opFn) {
+        opFn(currentBatch);
+        opCount++;
+        if (opCount >= 400) {
+            batchList.push(currentBatch.commit());
+            currentBatch = writeBatch(db);
+            opCount = 0;
+        }
+    }
 
     const scoresCollectionRef = collection(db, `/artifacts/${appId}/public/data/scores`);
     const scoresSnapshot = await getDocs(scoresCollectionRef);
@@ -379,7 +417,7 @@ export async function resetSimulationData() {
                 }
             });
             if (needsUpdate) {
-                batch.update(docSnap.ref, updates);
+                addOp(b => b.update(docSnap.ref, updates));
             }
         }
     });
@@ -389,7 +427,7 @@ export async function resetSimulationData() {
     
     selectionsSnapshot.forEach(docSnap => {
         if (docSnap.id.startsWith('sim-voter-')) {
-            batch.delete(docSnap.ref);
+            addOp(b => b.delete(docSnap.ref));
         }
     });
 
@@ -397,28 +435,48 @@ export async function resetSimulationData() {
     const submissionsSnapshot = await getDocs(submissionsCollectionRef);
     submissionsSnapshot.forEach(docSnap => {
         if (docSnap.id.startsWith('sim-evaluator-')) {
-            batch.delete(docSnap.ref);
+            addOp(b => b.delete(docSnap.ref));
         }
     });
 
-    await batch.commit();
+    if (opCount > 0) {
+        batchList.push(currentBatch.commit());
+    }
+
+    await Promise.all(batchList);
 }
 
 /**
- * 전체 데이터 초기화
+ * 전체 데이터 초기화 (청크 분할 배치)
  */
 export async function resetAllData() {
     const db = getDb();
     const collectionsToDelete = ['scores', 'excellent_presenter_selections', 'submissions', 'voter_sessions', 'evaluator_sessions'];
-    const batch = writeBatch(db);
+    const batchList = [];
+    let currentBatch = writeBatch(db);
+    let opCount = 0;
+
+    function addOp(opFn) {
+        opFn(currentBatch);
+        opCount++;
+        if (opCount >= 400) {
+            batchList.push(currentBatch.commit());
+            currentBatch = writeBatch(db);
+            opCount = 0;
+        }
+    }
 
     for (const collectionName of collectionsToDelete) {
         const collectionRef = collection(db, `/artifacts/${appId}/public/data/${collectionName}`);
         const snapshot = await getDocs(collectionRef);
         snapshot.forEach(d => {
-            batch.delete(d.ref);
+            addOp(b => b.delete(d.ref));
         });
     }
 
-    await batch.commit();
+    if (opCount > 0) {
+        batchList.push(currentBatch.commit());
+    }
+
+    await Promise.all(batchList);
 }

@@ -417,10 +417,11 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 await runSimulation();
                 simulationBtn.textContent = '시뮬레이션 완료';
-                showMessage('가상 평가자 점수 입력과 가상 투표자 투표를 완료했습니다. 결과를 확인하세요.');
+                render();
+                showMessage('가상 평가자 6명의 점수와 가상 투표자 투표가 성공적으로 생성되었습니다. 각 탭의 결과를 확인하세요.');
             } catch (err) {
                 console.error("Simulation error:", err);
-                showMessage('시뮬레이션 중 오류가 발생했습니다.');
+                showMessage('시뮬레이션 중 오류가 발생했습니다: ' + err.message);
             } finally {
                 simulationBtn.disabled = false;
                 simulationBtn.textContent = '가상 평가 시뮬레이션';
@@ -477,6 +478,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 resetSimBtn.textContent = '초기화 중...';
                 try {
                     await resetSimulationData();
+                    render();
                     showMessage('시뮬레이션 데이터가 성공적으로 초기화되었습니다.');
                 } catch (err) {
                     console.error("Reset simulation error:", err);
@@ -498,6 +500,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 fullResetBtn.textContent = '삭제 중...';
                 try {
                     await resetAllData();
+                    render();
                     showMessage('모든 데이터가 성공적으로 초기화되었습니다.');
                 } catch (err) {
                     console.error("Full reset error:", err);
