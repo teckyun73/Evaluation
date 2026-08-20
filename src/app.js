@@ -598,7 +598,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // 시상식 배경음악(BGM) 토글 버튼
             const bgmBtn = e.target.closest('#toggle-ceremony-bgm-btn');
             if (bgmBtn) {
-                const isPlaying = soundEngine.toggleBgm();
+                const isPlaying = await soundEngine.toggleBgm();
                 bgmBtn.className = `text-xs md:text-sm font-semibold px-3 py-2 ${isPlaying ? 'bg-purple-600 text-white' : 'bg-white border border-slate-300 text-slate-700'} rounded-lg transition shadow flex items-center gap-1`;
                 bgmBtn.innerHTML = `<span>${isPlaying ? '🎵 BGM 정지' : '🎶 BGM 재생'}</span>`;
             }
