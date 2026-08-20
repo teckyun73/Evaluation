@@ -344,6 +344,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const roleAdminBtn = document.getElementById('role-admin');
     const loginIdLabel = document.getElementById('login-id-label');
     const loginIdInput = document.getElementById('login-id');
+    const passwordLabel = document.getElementById('password-label');
+    const loginPasswordInput = document.getElementById('password');
     const loginRoleInput = document.getElementById('login-role');
 
     function setRole(role) {
@@ -356,14 +358,29 @@ document.addEventListener('DOMContentLoaded', () => {
             if (roleEvaluatorBtn) roleEvaluatorBtn.classList.add('active');
             if (loginIdLabel) loginIdLabel.textContent = '성명';
             if (loginIdInput) loginIdInput.placeholder = '성명 (예: 홍길동)';
+            if (passwordLabel) passwordLabel.textContent = '비밀번호';
+            if (loginPasswordInput) {
+                loginPasswordInput.placeholder = '평가자 비밀번호';
+                loginPasswordInput.type = 'password';
+            }
         } else if (role === 'voter') {
             if (roleVoterBtn) roleVoterBtn.classList.add('active');
-            if (loginIdLabel) loginIdLabel.textContent = '아이디';
-            if (loginIdInput) loginIdInput.placeholder = '아이디 (예: atec001)';
+            if (loginIdLabel) loginIdLabel.textContent = '성명';
+            if (loginIdInput) loginIdInput.placeholder = '성명 (예: 홍길동)';
+            if (passwordLabel) passwordLabel.textContent = '이메일';
+            if (loginPasswordInput) {
+                loginPasswordInput.placeholder = '이메일 (예: gildong@atec.co.kr)';
+                loginPasswordInput.type = 'email';
+            }
         } else if (role === 'admin') {
             if (roleAdminBtn) roleAdminBtn.classList.add('active');
             if (loginIdLabel) loginIdLabel.textContent = '관리자 ID';
             if (loginIdInput) loginIdInput.placeholder = 'admin';
+            if (passwordLabel) passwordLabel.textContent = '비밀번호';
+            if (loginPasswordInput) {
+                loginPasswordInput.placeholder = '관리자 비밀번호';
+                loginPasswordInput.type = 'password';
+            }
         }
     }
 
@@ -377,7 +394,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const loginBtn = document.getElementById('login-btn');
     if (loginBtn) loginBtn.addEventListener('click', onLoginSubmit);
 
-    const loginPasswordInput = document.getElementById('password');
     if (loginPasswordInput) {
         loginPasswordInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') onLoginSubmit();
