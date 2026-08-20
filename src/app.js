@@ -582,6 +582,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 render();
             }
 
+            // 시상식 전체화면 모드 토글 버튼
+            if (e.target.closest('#toggle-ceremony-fullscreen-btn')) {
+                const ceremonyContainer = document.getElementById('award-ceremony-container');
+                if (ceremonyContainer) {
+                    if (!document.fullscreenElement) {
+                        ceremonyContainer.requestFullscreen().catch(err => {
+                            console.error("Ceremony fullscreen error:", err);
+                        });
+                    } else {
+                        document.exitFullscreen();
+                    }
+                }
+            }
+
             // 프레젠테이션 전체화면 모드 토글
             if (e.target.closest('#toggle-presentation-fullscreen-btn')) {
                 const card = document.getElementById('presentation-card-container');

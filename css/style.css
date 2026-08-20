@@ -147,8 +147,8 @@ body {
 }
 
 .ceremony-card.hidden-award {
-    opacity: 0.5;
-    filter: grayscale(0.8);
+    opacity: 0.4;
+    filter: grayscale(0.9);
     transform: translateY(10px);
 }
 
@@ -160,13 +160,55 @@ body {
 
 @keyframes revealCard {
     0% {
-        transform: scale(0.9) rotateY(40deg);
+        transform: scale(0.85) rotateY(40deg);
         opacity: 0;
     }
     100% {
         transform: scale(1) rotateY(0deg);
         opacity: 1;
     }
+}
+
+/* ==========================================================================
+   Award Ceremony Fullscreen Mode (시상식 대화면 빔프로젝터 모드)
+   ========================================================================== */
+#award-ceremony-container:fullscreen {
+    background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
+    padding: 2.5rem 4rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+    width: 100vw;
+    height: 100vh;
+    overflow-y: auto;
+}
+
+#award-ceremony-container:fullscreen > div:first-child {
+    background: rgba(255, 255, 255, 0.1) !important;
+    backdrop-filter: blur(12px);
+    border-color: rgba(245, 158, 11, 0.3) !important;
+    width: 100%;
+    max-width: 1300px;
+}
+
+#award-ceremony-container:fullscreen > div:first-child h2 {
+    color: #ffffff !important;
+}
+
+#award-ceremony-container:fullscreen > div:first-child p {
+    color: #cbd5e1 !important;
+}
+
+#award-ceremony-container:fullscreen .ceremony-podium-grid {
+    width: 100%;
+    max-width: 1300px;
+    margin: auto 0;
+}
+
+#award-ceremony-container:fullscreen .ceremony-card {
+    background: rgba(255, 255, 255, 0.95);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
 }
 
 /* ==========================================================================
@@ -245,6 +287,7 @@ body {
     .download-single-chart-btn,
     #download-presentation-chart-btn,
     #toggle-presentation-fullscreen-btn,
+    #toggle-ceremony-fullscreen-btn,
     #download-radar-chart-btn,
     #next-reveal-btn,
     #reset-ceremony-btn,
