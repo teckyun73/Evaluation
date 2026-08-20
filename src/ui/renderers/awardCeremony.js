@@ -1,6 +1,6 @@
 /**
  * awardCeremony.js
- * 시상식 순차 공개(Award Ceremony Reveal), 축하 컨페티 효과, 실제 MP3 효과음 및 전체화면(Fullscreen) 모듈
+ * 시상식 순차 공개(Award Ceremony Reveal), 축하 컨페티 효과, 실제 MP3 효과음, 전체화면 및 창 간 실시간 원격 제어 동기화 모듈
  */
 
 import { CATEGORY_DISPLAY_NAMES } from '../../config/constants.js';
@@ -11,13 +11,26 @@ import { soundEngine } from '../../utils/soundEffects.js';
 let currentRevealedLevel = 0; // 0: 시작전, 1: 장려상, 2: 우수상, 3: 최우수상
 let ceremonyConfettiInstance = null;
 
+// 브라우저 탭/창 간 실시간 시상식 원격 동기화 채널
+const ceremonySyncChannel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('ceremony_sync_channel') : null;
+
+export function broadcastCeremonyAction(action, payload = {}) {
+    if (ceremonySyncChannel) {
+        try {
+            ceremonySyncChannel.postMessage({ action, payload, timestamp: Date.now() });
+        } catch (e) {
+            console.warn("BroadcastChannel postMessage error:", e);
+        }
+    }
+}
+
 export function triggerConfetti() {
     if (typeof confetti !== 'function') return;
 
     let targetConfetti = confetti;
 
     // 브라우저가 전체화면(Fullscreen Top Layer) 상태일 때는 body가 아닌 전체화면 요소 내부에 캔버스를 붙여야 보임
-    const fullscreenEl = document.fullscreenElement || document.getElementById('award-ceremony-container');
+    const fullscreenEl = document.fullscreenElement || document.getElementById('award-ceremony-container') || document.getElementById('ceremony-standalone-root');
     if (fullscreenEl) {
         let canvas = fullscreenEl.querySelector('#ceremony-confetti-canvas');
         if (!canvas) {
@@ -272,7 +285,11 @@ export function renderAwardCeremony() {
     return html;
 }
 
-export function handleNextReveal() {
+export function handleNextReveal(isRemote = false) {
+    if (!isRemote) {
+        broadcastCeremonyAction('NEXT_REVEAL');
+    }
+
     currentRevealedLevel++;
     if (currentRevealedLevel > 3) {
         currentRevealedLevel = 3;
@@ -287,18 +304,20 @@ export function handleNextReveal() {
         }, 600);
     } else if (currentRevealedLevel === 3) {
         // 최우수상: 실제 어쿠스틱 드럼롤 MP3 -> 카드 오픈 -> 실제 대형 승리 팡파레 MP3 + 수백 명 기립 박수/환호 MP3 + 대형 폭죽
-        soundEngine.playDrumRoll();
+        soundEngine.playGrandFanfareWithCheer();
         setTimeout(() => {
             updateCeremonyCards();
-            soundEngine.playGrandFanfareWithCheer();
             triggerConfetti();
-        }, 900);
+        }, 600);
     } else {
         updateCeremonyCards();
     }
 }
 
-export function handleResetCeremony() {
+export function handleResetCeremony(isRemote = false) {
+    if (!isRemote) {
+        broadcastCeremonyAction('RESET');
+    }
     currentRevealedLevel = 0;
     updateCeremonyCards();
 }

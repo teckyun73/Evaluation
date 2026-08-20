@@ -33,7 +33,7 @@ import {
 import { renderEvaluationTable, renderColumnTotals, updateAutosaveBadge } from './ui/renderers/evaluationTable.js';
 import { renderAdminDashboard } from './ui/renderers/adminDashboard.js';
 import { renderAdminSettings, handleSaveConfig, handleChangePassword } from './ui/renderers/adminSettings.js';
-import { renderAwardCeremony, handleNextReveal, handleResetCeremony, updateCeremonyCards } from './ui/renderers/awardCeremony.js';
+import { renderAwardCeremony, handleNextReveal, handleResetCeremony, updateCeremonyCards, broadcastCeremonyAction } from './ui/renderers/awardCeremony.js';
 import { renderRadarAnalysis } from './ui/renderers/radarAnalysis.js';
 import { renderResults } from './ui/renderers/results.js';
 import { renderPresentationResults } from './ui/renderers/presentationResults.js';
@@ -701,6 +701,7 @@ document.addEventListener('DOMContentLoaded', () => {
         tabContent.addEventListener('change', (e) => {
             if (e.target.id === 'ceremony-category-select') {
                 appState.setPresentationCategory(e.target.value);
+                broadcastCeremonyAction('SET_CATEGORY', { category: e.target.value });
                 handleResetCeremony();
                 return;
             }

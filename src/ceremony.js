@@ -1,8 +1,9 @@
 /**
  * ceremony.js
- * 시상식 전용 별도 창(Stand-alone Award Ceremony Window) 진입점 및 제어 모듈
+ * 시상식 전용 별도 창(Stand-alone Award Ceremony Window) 진입점 및 실시간 제어 동기화 모듈
  */
 
+import { initializeFirebaseOnce } from './config/firebase.js';
 import { appState } from './state/appState.js';
 import { 
     setupConfigListener, 
@@ -13,7 +14,8 @@ import {
     renderAwardCeremony, 
     handleNextReveal, 
     handleResetCeremony, 
-    updateCeremonyCards 
+    updateCeremonyCards,
+    broadcastCeremonyAction
 } from './ui/renderers/awardCeremony.js';
 import { soundEngine } from './utils/soundEffects.js';
 
@@ -31,23 +33,59 @@ function renderStandaloneCeremony() {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
-    // 1. 실시간 동기화 구독
+    // 1. Firebase 초기화 완료 대기
+    try {
+        await initializeFirebaseOnce();
+    } catch (e) {
+        console.error("Firebase init error in ceremony window:", e);
+    }
+
+    // 2. 실시간 Firestore 리스너 구독
     setupConfigListener(() => {
         renderStandaloneCeremony();
     });
 
     setupRealtimeScoresListener(() => {
-        updateCeremonyCards();
+        const root = document.getElementById('ceremony-standalone-root');
+        if (root && root.querySelector('#award-ceremony-container')) {
+            updateCeremonyCards();
+        } else {
+            renderStandaloneCeremony();
+        }
     });
 
     setupExcellentPresenterListener(() => {
-        updateCeremonyCards();
+        const root = document.getElementById('ceremony-standalone-root');
+        if (root && root.querySelector('#award-ceremony-container')) {
+            updateCeremonyCards();
+        } else {
+            renderStandaloneCeremony();
+        }
     });
 
-    // 2. 초기 렌더링
+    // 3. 화면 초기 렌더링
     renderStandaloneCeremony();
 
-    // 3. 이벤트 바인딩
+    // 4. 메인 창 원격 제어 수신 리스너 (BroadcastChannel)
+    if (typeof BroadcastChannel !== 'undefined') {
+        const syncChannel = new BroadcastChannel('ceremony_sync_channel');
+        syncChannel.onmessage = (event) => {
+            const { action, payload } = event.data || {};
+            if (action === 'NEXT_REVEAL') {
+                handleNextReveal(true);
+            } else if (action === 'RESET') {
+                handleResetCeremony(true);
+            } else if (action === 'SET_CATEGORY') {
+                if (payload && payload.category) {
+                    appState.setPresentationCategory(payload.category);
+                    handleResetCeremony(true);
+                    renderStandaloneCeremony();
+                }
+            }
+        };
+    }
+
+    // 5. 별도 창 내부 클릭 이벤트 핸들러
     document.addEventListener('click', async (e) => {
         // 다음 순위 공개 버튼
         if (e.target.closest('#next-reveal-btn')) {
@@ -83,7 +121,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.addEventListener('change', (e) => {
         if (e.target.id === 'ceremony-category-select') {
             appState.setPresentationCategory(e.target.value);
+            broadcastCeremonyAction('SET_CATEGORY', { category: e.target.value });
             handleResetCeremony();
+            renderStandaloneCeremony();
         }
     });
 });
