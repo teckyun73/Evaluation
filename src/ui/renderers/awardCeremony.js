@@ -213,19 +213,45 @@ export function renderAwardCeremony(isStandalone = false) {
         `;
     }
 
-    let html = `
-        <div id="award-ceremony-container" class="space-y-6 transition-all relative ${isStandalone ? 'standalone-stage' : ''}">
-            <!-- 시상식 상단 컨트롤 바 / 무대 헤더 -->
-            <div class="p-4 md:p-5 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-sky-500/10 border border-amber-200/80 rounded-2xl flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 ${isStandalone ? 'text-center justify-center' : ''}">
-                <div class="${isStandalone ? 'w-full text-center' : 'min-w-0 flex-1'}">
+    let headerHtml = '';
+
+    if (isStandalone) {
+        // 별도 창(대형 스크린/빔프로젝터 송출 전용) 웅장한 무대 헤더
+        headerHtml = `
+            <div class="py-7 md:py-10 px-6 md:px-12 bg-gradient-to-r from-amber-500/15 via-amber-500/5 to-sky-500/15 border-2 border-amber-300/80 rounded-3xl text-center shadow-lg mb-6">
+                <div class="inline-flex items-center gap-2 mb-2">
+                    <span class="text-xs md:text-sm font-extrabold tracking-widest text-amber-700 uppercase bg-amber-100 border border-amber-300 px-4 py-1 rounded-full shadow-xs">
+                        🏆 GRAND AWARD CEREMONY
+                    </span>
+                </div>
+                <h1 class="text-3xl md:text-5xl lg:text-6xl font-black text-slate-900 tracking-tight leading-tight mt-1">
+                    2026 경영혁신 경진대회 시상식 
+                    <span class="inline-block text-amber-600 font-black ml-2 md:ml-3 drop-shadow-sm">(${categoryName} 부문)</span>
+                </h1>
+                <p class="text-base md:text-xl lg:text-2xl text-slate-600 font-semibold mt-3">
+                    영예의 수상자를 발표합니다.
+                </p>
+            </div>
+        `;
+    } else {
+        // 메인 관리자 창 (컴팩트한 1줄 컨트롤 헤더)
+        headerHtml = `
+            <div class="p-4 md:p-5 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-sky-500/10 border border-amber-200/80 rounded-2xl flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4">
+                <div class="min-w-0 flex-1">
                     <span class="inline-block text-[11px] font-extrabold tracking-wider text-amber-700 uppercase bg-amber-100/90 border border-amber-300/60 px-2.5 py-0.5 rounded-md shadow-xs">AWARD CEREMONY</span>
                     <h2 class="text-xl md:text-2xl font-black text-slate-900 mt-1 whitespace-nowrap overflow-hidden text-ellipsis tracking-tight">
-                        2026 경영혁신 경진대회 시상식 ${isStandalone ? `<span class="text-amber-600 font-extrabold ml-2">(${categoryName} 부문)</span>` : ''}
+                        2026 경영혁신 경진대회 시상식
                     </h2>
                     <p class="text-xs md:text-sm text-slate-500 mt-0.5 whitespace-nowrap">영예의 수상자를 발표합니다.</p>
                 </div>
                 ${controlsHtml}
             </div>
+        `;
+    }
+
+    let html = `
+        <div id="award-ceremony-container" class="space-y-6 transition-all relative ${isStandalone ? 'standalone-stage' : ''}">
+            ${headerHtml}
 
             <!-- 시상대 연출 컨테이너 -->
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-end pt-8 pb-6 ceremony-podium-grid">
