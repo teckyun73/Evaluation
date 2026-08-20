@@ -32,39 +32,52 @@ function renderStandaloneCeremony() {
     }
 }
 
-document.addEventListener('DOMContentLoaded', async () => {
-    // 1. Firebase 초기화 완료 대기
+async function initCeremony() {
+    // 1. 부모 창(window.opener)이 열려 있는 경우 메모리 상태 즉시 복제 (0초 즉시 렌더링)
     try {
-        await initializeFirebaseOnce();
+        if (window.opener && window.opener.appState) {
+            const parentState = window.opener.appState;
+            if (parentState.presenters) appState.presenters = JSON.parse(JSON.stringify(parentState.presenters));
+            if (parentState.evaluationCriteria) appState.evaluationCriteria = JSON.parse(JSON.stringify(parentState.evaluationCriteria));
+            if (parentState.allScores) appState.allScores = JSON.parse(JSON.stringify(parentState.allScores));
+            if (parentState.excellentPresenterSelections) appState.excellentPresenterSelections = JSON.parse(JSON.stringify(parentState.excellentPresenterSelections));
+            if (parentState.selectedPresentationCategory) appState.selectedPresentationCategory = parentState.selectedPresentationCategory;
+        }
     } catch (e) {
-        console.error("Firebase init error in ceremony window:", e);
+        console.warn("Could not copy parent state:", e);
     }
 
-    // 2. 실시간 Firestore 리스너 구독
-    setupConfigListener(() => {
-        renderStandaloneCeremony();
-    });
-
-    setupRealtimeScoresListener(() => {
-        const root = document.getElementById('ceremony-standalone-root');
-        if (root && root.querySelector('#award-ceremony-container')) {
-            updateCeremonyCards();
-        } else {
-            renderStandaloneCeremony();
-        }
-    });
-
-    setupExcellentPresenterListener(() => {
-        const root = document.getElementById('ceremony-standalone-root');
-        if (root && root.querySelector('#award-ceremony-container')) {
-            updateCeremonyCards();
-        } else {
-            renderStandaloneCeremony();
-        }
-    });
-
-    // 3. 화면 초기 렌더링
+    // 2. 즉시 1차 렌더링 실행
     renderStandaloneCeremony();
+
+    // 3. Firebase 초기화 및 실시간 Firestore 리스너 연결
+    try {
+        await initializeFirebaseOnce();
+        
+        setupConfigListener(() => {
+            renderStandaloneCeremony();
+        });
+
+        setupRealtimeScoresListener(() => {
+            const root = document.getElementById('ceremony-standalone-root');
+            if (root && root.querySelector('#award-ceremony-container')) {
+                updateCeremonyCards();
+            } else {
+                renderStandaloneCeremony();
+            }
+        });
+
+        setupExcellentPresenterListener(() => {
+            const root = document.getElementById('ceremony-standalone-root');
+            if (root && root.querySelector('#award-ceremony-container')) {
+                updateCeremonyCards();
+            } else {
+                renderStandaloneCeremony();
+            }
+        });
+    } catch (err) {
+        console.error("Firebase init/sync error in ceremony window:", err);
+    }
 
     // 4. 메인 창 원격 제어 수신 리스너 (BroadcastChannel)
     if (typeof BroadcastChannel !== 'undefined') {
@@ -107,12 +120,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // 전체화면 토글 버튼
         if (e.target.closest('#toggle-ceremony-fullscreen-btn')) {
-            if (!document.fullscreenElement) {
-                document.documentElement.requestFullscreen().catch(err => {
-                    console.error("Fullscreen error:", err);
-                });
-            } else {
-                document.exitFullscreen();
+            const ceremonyContainer = document.getElementById('award-ceremony-container') || document.getElementById('ceremony-standalone-root');
+            if (ceremonyContainer) {
+                if (!document.fullscreenElement) {
+                    ceremonyContainer.requestFullscreen().catch(err => {
+                        console.error("Fullscreen error:", err);
+                    });
+                } else {
+                    document.exitFullscreen();
+                }
             }
         }
     });
@@ -126,4 +142,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             renderStandaloneCeremony();
         }
     });
-});
+}
+
+// DOM 상태에 상관없이 즉시 초기화 실행
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initCeremony);
+} else {
+    initCeremony();
+}
