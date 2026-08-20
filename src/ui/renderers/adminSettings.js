@@ -1,11 +1,11 @@
 /**
  * adminSettings.js
- * 관리자 전용 발표자, 평가 기준 및 대회 정보 동적 설정 관리 뷰
+ * 관리자 전용 발표자, 평가 기준, 대회 정보 및 보안/비밀번호 관리 뷰
  */
 
 import { CATEGORY_DISPLAY_NAMES } from '../../config/constants.js';
 import { appState } from '../../state/appState.js';
-import { saveEventConfig } from '../../services/firestoreService.js';
+import { saveRemoteConfig, changeSystemPassword } from '../../services/firestoreService.js';
 import { showMessage } from '../modal.js';
 
 export function renderAdminSettings() {
@@ -17,8 +17,8 @@ export function renderAdminSettings() {
         <div class="space-y-8">
             <div class="p-4 bg-purple-50 border border-purple-200 rounded-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                    <h2 class="text-xl font-bold text-purple-900">대회 및 발표자 설정 관리</h2>
-                    <p class="text-sm text-purple-700 mt-0.5">발표자 명단, 배점 기준 및 대회 정보를 직접 수정하고 실시간 저장합니다.</p>
+                    <h2 class="text-xl font-bold text-purple-900">대회 및 보안 설정 관리</h2>
+                    <p class="text-sm text-purple-700 mt-0.5">대회 메타데이터, 발표자 명단, 배점 기준 및 시스템 보안 비밀번호를 직접 관리합니다.</p>
                 </div>
                 <div class="flex gap-2">
                     <button id="save-config-btn" class="bg-purple-600 hover:bg-purple-700 text-white text-sm font-semibold px-5 py-2.5 rounded-lg shadow-sm transition flex items-center gap-2">
@@ -123,6 +123,57 @@ export function renderAdminSettings() {
     html += `
                 </div>
             </div>
+
+            <!-- 4. 시스템 보안 및 비밀번호 관리 (SHA-256 암호화 동적 변경) -->
+            <div class="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
+                <h3 class="text-lg font-bold text-slate-800 mb-2 border-b pb-2 flex items-center gap-2">
+                    <span class="text-indigo-600">🔐</span> 4. 시스템 보안 및 비밀번호 관리
+                </h3>
+                <p class="text-xs text-slate-500 mb-6">비밀번호는 SHA-256 단방향 암호화되어 안전하게 보관됩니다. 변경 시 즉시 반영됩니다.</p>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- 관리자 비밀번호 변경 -->
+                    <div class="border border-indigo-100 rounded-xl p-5 bg-indigo-50/40">
+                        <div class="flex items-center gap-2 mb-3">
+                            <span class="text-sm font-bold text-indigo-900">👑 관리자(Admin) 비밀번호 변경</span>
+                        </div>
+                        <div class="space-y-3">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600 mb-1">새 관리자 비밀번호</label>
+                                <input type="password" id="new-admin-password" placeholder="새 관리자 비밀번호 입력" class="w-full px-3 py-2 border rounded-md text-sm bg-white">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600 mb-1">새 관리자 비밀번호 확인</label>
+                                <input type="password" id="new-admin-password-confirm" placeholder="새 관리자 비밀번호 재입력" class="w-full px-3 py-2 border rounded-md text-sm bg-white">
+                            </div>
+                            <button id="change-admin-pw-btn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold py-2 rounded-lg transition shadow-sm">
+                                관리자 비밀번호 변경 적용
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 심사위원(평가자) 공통 비밀번호 변경 -->
+                    <div class="border border-sky-100 rounded-xl p-5 bg-sky-50/40">
+                        <div class="flex items-center gap-2 mb-3">
+                            <span class="text-sm font-bold text-sky-900">👨‍⚖️ 심사위원(평가자) 공통 비밀번호 변경</span>
+                        </div>
+                        <div class="space-y-3">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600 mb-1">새 심사위원 비밀번호</label>
+                                <input type="password" id="new-evaluator-password" placeholder="새 심사위원 비밀번호 입력" class="w-full px-3 py-2 border rounded-md text-sm bg-white">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600 mb-1">새 심사위원 비밀번호 확인</label>
+                                <input type="password" id="new-evaluator-password-confirm" placeholder="새 심사위원 비밀번호 재입력" class="w-full px-3 py-2 border rounded-md text-sm bg-white">
+                            </div>
+                            <button id="change-evaluator-pw-btn" class="w-full bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold py-2 rounded-lg transition shadow-sm">
+                                심사위원 비밀번호 변경 적용
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
         </div>
     `;
 
@@ -171,10 +222,44 @@ export async function handleSaveConfig() {
     });
 
     try {
-        await saveEventConfig(newConfig);
+        await saveRemoteConfig(newConfig);
         showMessage("대회 설정이 성공적으로 저장되었습니다. 모든 클라이언트에 실시간 반영됩니다.");
     } catch (error) {
         console.error("Config save error:", error);
         showMessage("설정 저장 중 오류가 발생했습니다: " + error.message);
     }
+}
+
+/**
+ * 비밀번호 변경 핸들러
+ */
+export async function handleChangePassword(role) {
+    const pwInputId = role === 'admin' ? 'new-admin-password' : 'new-evaluator-password';
+    const confirmInputId = role === 'admin' ? 'new-admin-password-confirm' : 'new-evaluator-password-confirm';
+    const roleName = role === 'admin' ? '관리자' : '심사위원';
+
+    const pw = document.getElementById(pwInputId)?.value || '';
+    const confirm = document.getElementById(confirmInputId)?.value || '';
+
+    if (!pw || pw.length < 4) {
+        showMessage(`${roleName} 비밀번호는 최소 4자리 이상이어야 합니다.`);
+        return;
+    }
+
+    if (pw !== confirm) {
+        showMessage("비밀번호 확인이 일치하지 않습니다. 다시 입력해 주세요.");
+        return;
+    }
+
+    showMessage(`${roleName} 비밀번호를 변경하시겠습니까? 즉시 암호화 적용되어 다음 로그인부터 새 비밀번호가 요구됩니다.`, true, async () => {
+        try {
+            await changeSystemPassword(role, pw);
+            document.getElementById(pwInputId).value = '';
+            document.getElementById(confirmInputId).value = '';
+            showMessage(`${roleName} 비밀번호가 성공적으로 변경되었습니다.`);
+        } catch (error) {
+            console.error("Password change error:", error);
+            showMessage("비밀번호 변경 중 오류가 발생했습니다: " + error.message);
+        }
+    });
 }

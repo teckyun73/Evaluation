@@ -32,7 +32,7 @@ import {
 // UI 렌더러 모듈
 import { renderEvaluationTable, renderColumnTotals, updateAutosaveBadge } from './ui/renderers/evaluationTable.js';
 import { renderAdminDashboard } from './ui/renderers/adminDashboard.js';
-import { renderAdminSettings, handleSaveConfig } from './ui/renderers/adminSettings.js';
+import { renderAdminSettings, handleSaveConfig, handleChangePassword } from './ui/renderers/adminSettings.js';
 import { renderAwardCeremony, handleNextReveal, handleResetCeremony, updateCeremonyCards } from './ui/renderers/awardCeremony.js';
 import { renderRadarAnalysis } from './ui/renderers/radarAnalysis.js';
 import { renderResults } from './ui/renderers/results.js';
@@ -626,6 +626,16 @@ document.addEventListener('DOMContentLoaded', () => {
             // 설정 저장 버튼
             if (e.target.closest('#save-config-btn')) {
                 await handleSaveConfig();
+            }
+
+            // 관리자 비밀번호 변경 버튼
+            if (e.target.closest('#change-admin-pw-btn')) {
+                await handleChangePassword('admin');
+            }
+
+            // 심사위원 비밀번호 변경 버튼
+            if (e.target.closest('#change-evaluator-pw-btn')) {
+                await handleChangePassword('evaluator');
             }
 
             // 발표자 추가 버튼

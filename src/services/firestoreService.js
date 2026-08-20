@@ -1,6 +1,6 @@
 /**
  * firestoreService.js
- * Firestore 실시간 데이터베이스 연동, 데이터 저장, 동적 설정, 세션 및 심사평 관리 모듈
+ * Firestore 실시간 리스너 구독, 점수/투표/설정 CRUD 및 배치 시뮬레이션 서비스
  */
 
 import { 
@@ -8,8 +8,9 @@ import {
     doc, 
     setDoc, 
     updateDoc, 
-    collection, 
     onSnapshot, 
+    collection, 
+    serverTimestamp, 
     getDocs, 
     writeBatch, 
     deleteField, 
@@ -17,225 +18,244 @@ import {
 } from '../config/firebase.js';
 import { appState } from '../state/appState.js';
 import { generateUUID } from '../utils/helpers.js';
-
-let saveStatusResetTimeout = null;
+import { hashPassword } from '../utils/crypto.js';
 
 /**
- * 대회 동적 설정 실시간 리스너 등록
+ * 대회 동적 설정(발표자, 배점기준, 메타데이터) 실시간 리스너
  */
 export function setupConfigListener(callback) {
     const db = getDb();
-    const configDocRef = doc(db, `/artifacts/${appId}/public/data/config`, 'main');
-    
+    const configDocRef = doc(db, `/artifacts/${appId}/public/data/config`, 'default-config');
+
     return onSnapshot(configDocRef, (docSnap) => {
         if (docSnap.exists()) {
-            const data = docSnap.data();
-            appState.setDynamicConfig(data);
-            if (typeof callback === 'function') callback(data);
+            const remoteConfig = docSnap.data();
+            appState.applyRemoteConfig(remoteConfig);
+            if (callback) callback(remoteConfig);
         }
-    }, (err) => {
-        console.warn("No remote dynamic config found, using defaults.", err);
+    }, (error) => {
+        console.error("Config listener error:", error);
     });
 }
 
 /**
- * 대회 동적 설정 저장 (관리자용)
+ * 대회 동적 설정을 Firestore에 영구 저장
  */
-export async function saveEventConfig(config) {
+export async function saveRemoteConfig(configData) {
     const db = getDb();
-    const configDocRef = doc(db, `/artifacts/${appId}/public/data/config`, 'main');
-    await setDoc(configDocRef, config, { merge: true });
-    appState.setDynamicConfig(config);
+    const configDocRef = doc(db, `/artifacts/${appId}/public/data/config`, 'default-config');
+    await setDoc(configDocRef, {
+        ...configData,
+        updatedAt: serverTimestamp()
+    }, { merge: true });
 }
 
 /**
- * 점수 및 심사평 실시간 리스너 등록
+ * 관리자/평가자 비밀번호를 SHA-256 해시로 안전하게 변경 저장
+ * @param {'admin'|'evaluator'} role 
+ * @param {string} newPassword 
+ */
+export async function changeSystemPassword(role, newPassword) {
+    if (!newPassword || newPassword.trim().length < 4) {
+        throw new Error("비밀번호는 최소 4자리 이상이어야 합니다.");
+    }
+    const db = getDb();
+    const newHash = await hashPassword(newPassword.trim());
+    const authDocRef = doc(db, `/artifacts/${appId}/public/data/auth_config`, 'credentials');
+
+    const updateData = {};
+    if (role === 'admin') {
+        updateData.adminPasswordHash = newHash;
+    } else if (role === 'evaluator') {
+        updateData.evaluatorPasswordHash = newHash;
+    }
+    updateData.updatedAt = serverTimestamp();
+
+    await setDoc(authDocRef, updateData, { merge: true });
+}
+
+/**
+ * 평가 점수 실시간 리스너
  */
 export function setupRealtimeScoresListener(callback) {
     const db = getDb();
-    const collectionPath = `/artifacts/${appId}/public/data/scores`;
-    const scoresCollection = collection(db, collectionPath);
-    
-    return onSnapshot(scoresCollection, (snapshot) => {
-        let shouldRerender = false;
+    const scoresCollectionRef = collection(db, `/artifacts/${appId}/public/data/scores`);
+
+    return onSnapshot(scoresCollectionRef, (snapshot) => {
         snapshot.docChanges().forEach((change) => {
-            shouldRerender = true;
+            const presenterId = change.doc.id;
+            const data = change.doc.data();
+
             if (change.type === "added" || change.type === "modified") {
-                const data = change.doc.data();
-                if (data && !data.scores) {
-                    data.scores = {};
-                }
-                appState.allScores[change.doc.id] = data;
-            }
-            if (change.type === "removed") {
-                delete appState.allScores[change.doc.id];
+                appState.setPresenterScoreData(presenterId, data);
+            } else if (change.type === "removed") {
+                appState.deletePresenterScoreData(presenterId);
             }
         });
 
-        if (shouldRerender) {
-            appState.resetFinalResultsCache();
-            if (typeof callback === 'function') callback();
-        }
+        if (callback) callback();
     }, (error) => {
-        console.error("Scores Snapshot listener error:", error);
+        console.error("Realtime scores listener error:", error);
     });
 }
 
 /**
- * 평가자 본인 제출 상태 리스너 등록
+ * 특정 평가자의 부문별 제출 상태 리스너
  */
 export function setupSubmissionListener(evaluatorId, callback) {
-    if (!evaluatorId) return () => {};
     const db = getDb();
-    const submissionDocRef = doc(db, `/artifacts/${appId}/public/data/submissions`, evaluatorId);
-    
-    return onSnapshot(submissionDocRef, (docSnap) => {
-        appState.submissionStatus = docSnap.exists() ? docSnap.data() : {};
-        if (typeof callback === 'function') callback();
+    const docRef = doc(db, `/artifacts/${appId}/public/data/submissions`, evaluatorId);
+
+    return onSnapshot(docRef, (docSnap) => {
+        if (docSnap.exists()) {
+            appState.setSubmissions(docSnap.data());
+        } else {
+            appState.setSubmissions({});
+        }
+        if (callback) callback();
+    }, (error) => {
+        console.error("Submission listener error:", error);
     });
 }
 
 /**
- * 관리자용: 모든 평가자 제출 상태 컬렉션 리스너 등록
+ * 관리자용 전체 평가자 제출 상태 리스너
  */
 export function setupAllSubmissionsListener(callback) {
     const db = getDb();
-    const submissionsCollection = collection(db, `/artifacts/${appId}/public/data/submissions`);
-    
-    return onSnapshot(submissionsCollection, (snapshot) => {
+    const colRef = collection(db, `/artifacts/${appId}/public/data/submissions`);
+
+    return onSnapshot(colRef, (snapshot) => {
         const allSubs = {};
         snapshot.forEach(docSnap => {
             allSubs[docSnap.id] = docSnap.data();
         });
-        appState.allSubmissions = allSubs;
-        if (typeof callback === 'function') callback();
+        appState.setAllSubmissions(allSubs);
+        if (callback) callback(allSubs);
+    }, (error) => {
+        console.error("All submissions listener error:", error);
     });
 }
 
 /**
- * 우수 발표자 투표 현황 리스너 등록
+ * 우수 발표자 투표 실시간 리스너
  */
 export function setupExcellentPresenterListener(callback) {
     const db = getDb();
-    const collectionPath = `/artifacts/${appId}/public/data/excellent_presenter_selections`;
-    const selectionsCollection = collection(db, collectionPath);
-    
-    return onSnapshot(selectionsCollection, (snapshot) => {
-        let changed = false;
-        snapshot.docChanges().forEach((change) => {
-            changed = true;
-            if (change.type === "added" || change.type === "modified") {
-                appState.excellentPresenterSelections[change.doc.id] = change.doc.data();
-            } else if (change.type === "removed") {
-                delete appState.excellentPresenterSelections[change.doc.id];
-            }
-        });
+    const selectionsCollectionRef = collection(db, `/artifacts/${appId}/public/data/excellent_presenter_selections`);
 
-        if (changed) {
-            appState.resetFinalResultsCache();
-            if (typeof callback === 'function') callback();
-        }
+    return onSnapshot(selectionsCollectionRef, (snapshot) => {
+        const selections = {};
+        snapshot.forEach(docSnap => {
+            selections[docSnap.id] = docSnap.data();
+        });
+        appState.setExcellentPresenterSelections(selections);
+        if (callback) callback(selections);
+    }, (error) => {
+        console.error("Excellent presenter listener error:", error);
     });
 }
 
 /**
- * 점수 비동기 업데이트
+ * 점수 업데이트
  */
-export async function updateScore(presenterId, criterionKey, score) {
+export async function updateScore(presenterId, criterionKey, value) {
     if (!appState.loginId) return;
-    const scoreValue = score === '' ? null : parseInt(score, 10);
-    if (score !== '' && isNaN(scoreValue)) return;
-    
-    appState.setSaveStatus('saving');
 
+    appState.setSaveStatus('SAVING');
     const db = getDb();
-    const docRef = doc(db, `/artifacts/${appId}/public/data/scores/${presenterId}`);
-    
-    const scoreUpdatePayload = {
-        [`scores.${appState.loginId}.${criterionKey}`]: scoreValue
-    };
+    const docRef = doc(db, `/artifacts/${appId}/public/data/scores`, presenterId);
 
     try {
-        const category = Object.keys(appState.presenters).find(cat => appState.presenters[cat].some(p => p.id === presenterId));
-        if (!category) return;
-        const presenterObj = appState.presenters[category].find(p => p.id === presenterId);
-        const baseData = {
-            id: presenterId,
-            name: presenterObj ? presenterObj.name : presenterId,
-            category: category
+        const scoreVal = value === '' ? null : parseInt(value, 10);
+        const payload = {
+            [`scores.${appState.loginId}.${criterionKey}`]: scoreVal,
+            updatedAt: serverTimestamp()
         };
-        await setDoc(docRef, baseData, { merge: true });
-        await updateDoc(docRef, scoreUpdatePayload);
 
-        appState.setSaveStatus('saved');
-        
-        if (saveStatusResetTimeout) clearTimeout(saveStatusResetTimeout);
-        saveStatusResetTimeout = setTimeout(() => {
-            if (appState.saveStatus === 'saved') {
-                appState.setSaveStatus('idle');
-            }
-        }, 3000);
+        const baseData = {
+            presenterId,
+            updatedAt: serverTimestamp()
+        };
+
+        await setDoc(docRef, baseData, { merge: true });
+        await updateDoc(docRef, payload);
+
+        appState.setSaveStatus('SAVED');
     } catch (error) {
-        console.error("Error updating score: ", error);
-        appState.setSaveStatus('error');
+        console.error("Error updating score:", error);
+        appState.setSaveStatus('ERROR');
         throw error;
     }
 }
 
 /**
- * 발표자별 심사평 코멘트 비동기 업데이트
+ * 심사평 코멘트 업데이트
  */
-export async function updateComment(presenterId, commentText) {
+export async function updateComment(presenterId, text) {
     if (!appState.loginId) return;
-    appState.setSaveStatus('saving');
 
+    appState.setSaveStatus('SAVING');
     const db = getDb();
-    const docRef = doc(db, `/artifacts/${appId}/public/data/scores/${presenterId}`);
-    
-    const commentUpdatePayload = {
-        [`comments.${appState.loginId}`]: commentText.trim()
-    };
+    const docRef = doc(db, `/artifacts/${appId}/public/data/scores`, presenterId);
 
     try {
-        await updateDoc(docRef, commentUpdatePayload);
-        appState.setSaveStatus('saved');
-        if (saveStatusResetTimeout) clearTimeout(saveStatusResetTimeout);
-        saveStatusResetTimeout = setTimeout(() => {
-            if (appState.saveStatus === 'saved') appState.setSaveStatus('idle');
-        }, 3000);
+        const payload = {
+            [`comments.${appState.loginId}`]: text.trim(),
+            updatedAt: serverTimestamp()
+        };
+
+        const baseData = {
+            presenterId,
+            updatedAt: serverTimestamp()
+        };
+
+        await setDoc(docRef, baseData, { merge: true });
+        await updateDoc(docRef, payload);
+
+        appState.setSaveStatus('SAVED');
     } catch (error) {
-        console.error("Error updating comment: ", error);
-        appState.setSaveStatus('error');
+        console.error("Error updating comment:", error);
+        appState.setSaveStatus('ERROR');
+        throw error;
     }
 }
 
 /**
- * 부문별 평가 최종 제출
+ * 부문별 최종 제출
  */
 export async function submitCategory(categoryKey) {
     if (!appState.loginId) return;
+
     const db = getDb();
-    const submissionDocRef = doc(db, `/artifacts/${appId}/public/data/submissions`, appState.loginId);
-    
-    await setDoc(submissionDocRef, { 
+    const docRef = doc(db, `/artifacts/${appId}/public/data/submissions`, appState.loginId);
+
+    const payload = {
+        evaluatorName: appState.loginId,
         [categoryKey]: true,
-        evaluatorName: appState.loginId
-    }, { merge: true });
+        updatedAt: serverTimestamp()
+    };
+
+    await setDoc(docRef, payload, { merge: true });
 }
 
 /**
- * 우수 발표자 투표 저장
+ * 우수 발표자 선택 임시 저장
  */
 export async function saveExcellentSelection(category, presenterName) {
     if (!appState.loginId) return;
+
     const db = getDb();
     const docRef = doc(db, `/artifacts/${appId}/public/data/excellent_presenter_selections`, appState.loginId);
+
     const payload = {
-        [`selections.${category}`]: presenterName
+        evaluatorName: appState.loginId,
+        [`selections.${category}`]: presenterName,
+        submitted: false,
+        updatedAt: serverTimestamp()
     };
-    
-    await setDoc(docRef, { evaluatorName: appState.loginId }, { merge: true });
-    await updateDoc(docRef, payload);
+
+    await setDoc(docRef, payload, { merge: true });
 }
 
 /**
@@ -243,9 +263,14 @@ export async function saveExcellentSelection(category, presenterName) {
  */
 export async function submitExcellentSelections() {
     if (!appState.loginId) return;
+
     const db = getDb();
     const docRef = doc(db, `/artifacts/${appId}/public/data/excellent_presenter_selections`, appState.loginId);
-    await updateDoc(docRef, { submitted: true });
+
+    await updateDoc(docRef, {
+        submitted: true,
+        updatedAt: serverTimestamp()
+    });
 }
 
 /**
@@ -253,49 +278,45 @@ export async function submitExcellentSelections() {
  */
 export async function resetVoterSessions() {
     const db = getDb();
-    const sessionsCollectionRef = collection(db, `/artifacts/${appId}/public/data/voter_sessions`);
-    const snapshot = await getDocs(sessionsCollectionRef);
+    const sessionCollectionRef = collection(db, `/artifacts/${appId}/public/data/voter_sessions`);
+    const snapshot = await getDocs(sessionCollectionRef);
     const batch = writeBatch(db);
+
     snapshot.forEach(docSnap => {
         batch.delete(docSnap.ref);
     });
+
     await batch.commit();
 }
 
 /**
- * 시뮬레이션 가상 데이터 생성
+ * 가상 평가 및 투표 시뮬레이션
  */
 export async function runSimulation() {
     const db = getDb();
-    const simulatedEvaluatorIds = Array.from({ length: 15 }, () => `sim-evaluator-${generateUUID()}`);
+    const simulatedEvaluators = Array.from({ length: 6 }, () => `sim-evaluator-${generateUUID()}`);
+
     const scorePromises = [];
     const submissionPromises = [];
 
-    const mockComments = [
-        "논리적 전개와 개선 효과가 명확함.",
-        "데이터 기반의 분석 접근이 매우 우수함.",
-        "현장 적용성과 완성도가 돋보임.",
-        "향후 타 부서로의 확산 가능성이 큼."
-    ];
-
-    for (const userId of simulatedEvaluatorIds) {
+    for (const userId of simulatedEvaluators) {
         for (const category in appState.presenters) {
-            for (const presenter of appState.presenters[category]) {
-                const criteriaList = appState.evaluationCriteria[category] || [];
-                for (const criterion of criteriaList) {
-                    const randomScore = Math.floor(Math.random() * (criterion.max * 0.8) + (criterion.max * 0.2));
-                    const docRef = doc(db, `/artifacts/${appId}/public/data/scores/${presenter.id}`);
-                    
-                    const baseData = {
-                        id: presenter.id,
-                        name: presenter.name,
-                        category: category
-                    };
+            const categoryPresenters = appState.presenters[category];
+            const criteria = appState.evaluationCriteria[category] || [];
+
+            for (const presenter of categoryPresenters) {
+                const docRef = doc(db, `/artifacts/${appId}/public/data/scores`, presenter.id);
+                for (const criterion of criteria) {
+                    const score = Math.floor(Math.random() * (criterion.maxScore - 5)) + 5;
                     const payload = {
-                        [`scores.${userId}.${criterion.key}`]: randomScore,
-                        [`comments.${userId}`]: mockComments[Math.floor(Math.random() * mockComments.length)]
+                        [`scores.${userId}.${criterion.key}`]: score,
+                        updatedAt: serverTimestamp()
                     };
-                    
+                    const baseData = {
+                        presenterId: presenter.id,
+                        updatedAt: serverTimestamp()
+                    };
+
                     scorePromises.push(
                         setDoc(docRef, baseData, { merge: true }).then(() => updateDoc(docRef, payload))
                     );
