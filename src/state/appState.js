@@ -17,6 +17,7 @@ export const appState = {
     selectedPresentationCategory: '6s',
     saveStatus: 'idle', // 'idle' | 'saving' | 'saved' | 'error'
     isOnline: navigator.onLine,
+    voterEmail: null,
     
     // 동적 대회 설정 데이터 (Firestore 연동)
     presenters: JSON.parse(JSON.stringify(PRESENTERS)),
@@ -66,7 +67,35 @@ export const appState = {
         this.notify('ONLINE_STATUS_CHANGED', { online });
     },
 
-    setDynamicConfig(config) {
+    setPresenterScoreData(presenterId, data) {
+        this.allScores[presenterId] = data;
+        this.finalResultsData = null;
+        this.notify('SCORES_CHANGED', { presenterId, data });
+    },
+
+    deletePresenterScoreData(presenterId) {
+        delete this.allScores[presenterId];
+        this.finalResultsData = null;
+        this.notify('SCORES_CHANGED', { presenterId });
+    },
+
+    setSubmissions(submissions) {
+        this.submissionStatus = submissions || {};
+        this.notify('SUBMISSIONS_CHANGED', this.submissionStatus);
+    },
+
+    setAllSubmissions(allSubs) {
+        this.allSubmissions = allSubs || {};
+        this.notify('ALL_SUBMISSIONS_CHANGED', this.allSubmissions);
+    },
+
+    setExcellentPresenterSelections(selections) {
+        this.excellentPresenterSelections = selections || {};
+        this.finalResultsData = null;
+        this.notify('VOTES_CHANGED', this.excellentPresenterSelections);
+    },
+
+    applyRemoteConfig(config) {
         if (!config) return;
         if (config.presenters) this.presenters = config.presenters;
         if (config.evaluationCriteria) this.evaluationCriteria = config.evaluationCriteria;

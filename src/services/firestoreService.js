@@ -317,7 +317,8 @@ export async function runSimulation() {
 
         for (const presenter of catPresenters) {
             const docRef = doc(db, `/artifacts/${appId}/public/data/scores`, presenter.id);
-            const scorePayload = {};
+            const existingScores = appState.allScores[presenter.id]?.scores || {};
+            const simScores = { ...existingScores };
 
             simulatedEvaluators.forEach(evalId => {
                 const evalScores = {};
@@ -326,12 +327,12 @@ export async function runSimulation() {
                     // 현실적인 70~100% 점수 분포
                     evalScores[c.key] = Math.floor(Math.random() * (max * 0.3)) + Math.floor(max * 0.7);
                 });
-                scorePayload[`scores.${evalId}`] = evalScores;
+                simScores[evalId] = evalScores;
             });
 
             addOp(b => b.set(docRef, { 
                 presenterId: presenter.id, 
-                ...scorePayload, 
+                scores: simScores, 
                 updatedAt: serverTimestamp() 
             }, { merge: true }));
         }
