@@ -197,13 +197,9 @@ export function renderAwardCeremony(isStandalone = false) {
                 </button>
 
                 <button id="reset-ceremony-btn" class="text-xs md:text-sm font-semibold px-3.5 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg transition">다시 진행</button>
-                <button id="open-ceremony-window-btn" class="text-xs md:text-sm font-bold px-3.5 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg shadow transition flex items-center gap-1.5" title="빔프로젝터/보조모니터 전용 별도 창 열기">
+                <button id="open-ceremony-window-btn" class="text-xs md:text-sm font-bold px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg shadow transition flex items-center gap-1.5" title="빔프로젝터/보조모니터 전용 별도 창 열기">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
                     <span>🪟 별도 창 열기</span>
-                </button>
-                <button id="toggle-ceremony-fullscreen-btn" class="text-xs md:text-sm font-bold px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg shadow transition flex items-center gap-1.5">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>
-                    <span>📺 전체화면</span>
                 </button>
                 <button id="next-reveal-btn" class="text-xs md:text-sm font-black px-5 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg shadow-md transition flex items-center gap-1.5 animate-pulse">
                     <span>✨ 다음 순위 공개</span>
