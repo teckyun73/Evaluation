@@ -185,23 +185,28 @@ export function renderAwardCeremony(isStandalone = false) {
         });
 
         controlsHtml = `
-            <div id="ceremony-controls-toolbar" class="ceremony-controls-wrapper flex flex-wrap items-center gap-2 md:gap-3">
+            <div id="ceremony-controls-toolbar" class="ceremony-controls-wrapper flex flex-wrap lg:flex-nowrap items-center gap-2 flex-shrink-0">
                 <!-- 부문 선택 -->
-                <select id="ceremony-category-select" class="px-3.5 py-2 bg-white border border-slate-300 rounded-lg shadow-sm font-bold text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
+                <select id="ceremony-category-select" class="h-9 px-3 bg-white border border-slate-300 rounded-lg shadow-sm font-bold text-xs md:text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500 cursor-pointer">
                     ${categoryOptions}
                 </select>
 
                 <!-- 사운드 효과음 토글 버튼 -->
-                <button id="toggle-ceremony-sound-btn" class="text-xs md:text-sm font-semibold px-3.5 py-2 ${isMuted ? 'bg-slate-300 text-slate-600' : 'bg-emerald-600 text-white'} rounded-lg transition shadow flex items-center gap-1">
+                <button id="toggle-ceremony-sound-btn" class="h-9 text-xs md:text-sm font-semibold px-3 ${isMuted ? 'bg-slate-200 text-slate-600 hover:bg-slate-300' : 'bg-emerald-600 hover:bg-emerald-700 text-white'} rounded-lg transition shadow-sm flex items-center justify-center gap-1 flex-shrink-0 whitespace-nowrap">
                     <span>${isMuted ? '🔇 음소거' : '🔊 효과음 ON'}</span>
                 </button>
 
-                <button id="reset-ceremony-btn" class="text-xs md:text-sm font-semibold px-3.5 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg transition">다시 진행</button>
-                <button id="open-ceremony-window-btn" class="text-xs md:text-sm font-bold px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg shadow transition flex items-center gap-1.5" title="빔프로젝터/보조모니터 전용 별도 창 열기">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                <!-- 다시 진행 버튼 -->
+                <button id="reset-ceremony-btn" class="h-9 text-xs md:text-sm font-semibold px-3 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg transition shadow-sm flex items-center justify-center flex-shrink-0 whitespace-nowrap">다시 진행</button>
+
+                <!-- 별도 창 열기 버튼 -->
+                <button id="open-ceremony-window-btn" class="h-9 text-xs md:text-sm font-bold px-3.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg shadow-sm transition flex items-center justify-center gap-1.5 flex-shrink-0 whitespace-nowrap" title="빔프로젝터/보조모니터 전용 별도 창 열기">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
                     <span>🪟 별도 창 열기</span>
                 </button>
-                <button id="next-reveal-btn" class="text-xs md:text-sm font-black px-5 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg shadow-md transition flex items-center gap-1.5 animate-pulse">
+
+                <!-- 다음 순위 공개 버튼 -->
+                <button id="next-reveal-btn" class="h-9 text-xs md:text-sm font-black px-4 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white rounded-lg shadow transition flex items-center justify-center gap-1.5 flex-shrink-0 whitespace-nowrap animate-pulse">
                     <span>✨ 다음 순위 공개</span>
                 </button>
             </div>
@@ -211,13 +216,13 @@ export function renderAwardCeremony(isStandalone = false) {
     let html = `
         <div id="award-ceremony-container" class="space-y-6 transition-all relative ${isStandalone ? 'standalone-stage' : ''}">
             <!-- 시상식 상단 컨트롤 바 / 무대 헤더 -->
-            <div class="p-5 md:p-6 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-sky-500/10 border border-amber-200 rounded-2xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4 ${isStandalone ? 'text-center justify-center' : ''}">
-                <div class="${isStandalone ? 'w-full text-center' : ''}">
-                    <span class="text-xs font-extrabold tracking-widest text-amber-600 uppercase bg-amber-100 px-3.5 py-1 rounded-full shadow-sm">AWARD CEREMONY</span>
-                    <h2 class="text-2xl md:text-4xl font-black text-slate-900 mt-2">
+            <div class="p-4 md:p-5 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-sky-500/10 border border-amber-200/80 rounded-2xl flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 ${isStandalone ? 'text-center justify-center' : ''}">
+                <div class="${isStandalone ? 'w-full text-center' : 'min-w-0 flex-1'}">
+                    <span class="inline-block text-[11px] font-extrabold tracking-wider text-amber-700 uppercase bg-amber-100/90 border border-amber-300/60 px-2.5 py-0.5 rounded-md shadow-xs">AWARD CEREMONY</span>
+                    <h2 class="text-xl md:text-2xl font-black text-slate-900 mt-1 whitespace-nowrap overflow-hidden text-ellipsis tracking-tight">
                         2026 경영혁신 경진대회 시상식 ${isStandalone ? `<span class="text-amber-600 font-extrabold ml-2">(${categoryName} 부문)</span>` : ''}
                     </h2>
-                    <p class="text-sm md:text-base text-slate-600 mt-1">영예의 수상자를 발표합니다.</p>
+                    <p class="text-xs md:text-sm text-slate-500 mt-0.5 whitespace-nowrap">영예의 수상자를 발표합니다.</p>
                 </div>
                 ${controlsHtml}
             </div>
