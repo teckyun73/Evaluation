@@ -9,6 +9,7 @@ import { debounce } from './utils/helpers.js';
 import { exportToCSV } from './utils/exportCsv.js';
 import { handleScoreTableKeyDown } from './utils/keyboardNav.js';
 import { exportFullDatabaseToJSON, importDatabaseFromJSON } from './utils/backupRestore.js';
+import { soundEngine } from './utils/soundEffects.js';
 import { showMessage, initModal } from './ui/modal.js';
 import { login, logout } from './services/authService.js';
 import { 
@@ -584,6 +585,22 @@ document.addEventListener('DOMContentLoaded', () => {
             // 시상식 초기화 버튼 (전체화면 풀림 없이 내부 카드만 갱신)
             if (e.target.closest('#reset-ceremony-btn')) {
                 handleResetCeremony();
+            }
+
+            // 시상식 사운드 효과음 토글 버튼
+            const soundBtn = e.target.closest('#toggle-ceremony-sound-btn');
+            if (soundBtn) {
+                const isMuted = soundEngine.toggleMute();
+                soundBtn.className = `text-xs md:text-sm font-semibold px-3 py-2 ${isMuted ? 'bg-slate-300 text-slate-600' : 'bg-emerald-600 text-white'} rounded-lg transition shadow flex items-center gap-1`;
+                soundBtn.innerHTML = `<span>${isMuted ? '🔇 음소거' : '🔊 효과음 ON'}</span>`;
+            }
+
+            // 시상식 배경음악(BGM) 토글 버튼
+            const bgmBtn = e.target.closest('#toggle-ceremony-bgm-btn');
+            if (bgmBtn) {
+                const isPlaying = soundEngine.toggleBgm();
+                bgmBtn.className = `text-xs md:text-sm font-semibold px-3 py-2 ${isPlaying ? 'bg-purple-600 text-white' : 'bg-white border border-slate-300 text-slate-700'} rounded-lg transition shadow flex items-center gap-1`;
+                bgmBtn.innerHTML = `<span>${isPlaying ? '🎵 BGM 정지' : '🎶 BGM 재생'}</span>`;
             }
 
             // 시상식 전체화면 모드 토글 버튼

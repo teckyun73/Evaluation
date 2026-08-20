@@ -1,11 +1,12 @@
 /**
  * awardCeremony.js
- * 시상식 순차 공개(Award Ceremony Reveal), 축하 컨페티 효과 및 대화면 전체화면(Fullscreen) 모듈
+ * 시상식 순차 공개(Award Ceremony Reveal), 축하 컨페티 효과, BGM & 효과음 및 전체화면(Fullscreen) 모듈
  */
 
 import { CATEGORY_DISPLAY_NAMES } from '../../config/constants.js';
 import { appState } from '../../state/appState.js';
 import { calculateResults } from '../../utils/calculator.js';
+import { soundEngine } from '../../utils/soundEffects.js';
 
 let currentRevealedLevel = 0; // 0: 시작전, 1: 장려상, 2: 우수상, 3: 최우수상
 let ceremonyConfettiInstance = null;
@@ -160,6 +161,8 @@ export function updateCeremonyCards() {
 
 export function renderAwardCeremony() {
     const { topWinner, runnerUp, encouragementWinners, selectedCategory, presenters } = getCeremonyCardsData();
+    const isMuted = soundEngine.isMuted;
+    const isBgmPlaying = soundEngine.isBgmPlaying;
 
     let html = `
         <div id="award-ceremony-container" class="space-y-6 transition-all relative">
@@ -171,7 +174,7 @@ export function renderAwardCeremony() {
                     <p class="text-sm text-slate-600 mt-0.5">부문별 영예의 수상자를 순차적으로 발표합니다.</p>
                 </div>
                 <div class="flex flex-wrap items-center gap-2 md:gap-3">
-                    <select id="ceremony-category-select" class="px-4 py-2 bg-white border border-slate-300 rounded-lg shadow-sm font-bold text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
+                    <select id="ceremony-category-select" class="px-3.5 py-2 bg-white border border-slate-300 rounded-lg shadow-sm font-bold text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
     `;
 
     Object.keys(presenters).forEach(cat => {
@@ -180,12 +183,23 @@ export function renderAwardCeremony() {
 
     html += `
                     </select>
+
+                    <!-- 사운드 효과음 토글 버튼 -->
+                    <button id="toggle-ceremony-sound-btn" class="text-xs md:text-sm font-semibold px-3 py-2 ${isMuted ? 'bg-slate-300 text-slate-600' : 'bg-emerald-600 text-white'} rounded-lg transition shadow flex items-center gap-1">
+                        <span>${isMuted ? '🔇 음소거' : '🔊 효과음 ON'}</span>
+                    </button>
+
+                    <!-- 시상식 배경음악(BGM) 토글 버튼 -->
+                    <button id="toggle-ceremony-bgm-btn" class="text-xs md:text-sm font-semibold px-3 py-2 ${isBgmPlaying ? 'bg-purple-600 text-white' : 'bg-white border border-slate-300 text-slate-700'} rounded-lg transition shadow flex items-center gap-1">
+                        <span>${isBgmPlaying ? '🎵 BGM 정지' : '🎶 BGM 재생'}</span>
+                    </button>
+
                     <button id="reset-ceremony-btn" class="text-xs md:text-sm font-semibold px-3.5 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg transition">다시 진행</button>
                     <button id="toggle-ceremony-fullscreen-btn" class="text-xs md:text-sm font-bold px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg shadow transition flex items-center gap-1.5">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>
-                        <span>📺 전체화면 모드</span>
+                        <span>📺 전체화면</span>
                     </button>
-                    <button id="next-reveal-btn" class="text-xs md:text-sm font-black px-5 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg shadow-md transition flex items-center gap-1.5">
+                    <button id="next-reveal-btn" class="text-xs md:text-sm font-black px-5 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg shadow-md transition flex items-center gap-1.5 animate-pulse">
                         <span>✨ 다음 순위 공개</span>
                     </button>
                 </div>
@@ -264,9 +278,24 @@ export function handleNextReveal() {
     if (currentRevealedLevel > 3) {
         currentRevealedLevel = 3;
     }
-    updateCeremonyCards();
-    if (currentRevealedLevel === 3) {
-        triggerConfetti();
+
+    if (currentRevealedLevel === 1 || currentRevealedLevel === 2) {
+        // 장려상 / 우수상: 짧은 드럼롤 후 팡파레
+        soundEngine.playDrumRoll(0.5);
+        setTimeout(() => {
+            updateCeremonyCards();
+            soundEngine.playRevealFanfare();
+        }, 500);
+    } else if (currentRevealedLevel === 3) {
+        // 최우수상: 긴장감 넘치는 긴 드럼롤 후 대형 팡파레 + 환호성 + 폭죽 발사!
+        soundEngine.playDrumRoll(0.9);
+        setTimeout(() => {
+            updateCeremonyCards();
+            soundEngine.playGrandFanfareWithCheer();
+            triggerConfetti();
+        }, 900);
+    } else {
+        updateCeremonyCards();
     }
 }
 
