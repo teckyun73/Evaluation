@@ -1,6 +1,6 @@
 /**
  * awardCeremony.js
- * 시상식 순차 공개(Award Ceremony Reveal), 축하 컨페티 효과 및 끊김 없는 전체화면(Fullscreen) 모듈
+ * 시상식 순차 공개(Award Ceremony Reveal), 축하 컨페티 효과 및 대화면 전체화면(Fullscreen) 모듈
  */
 
 import { CATEGORY_DISPLAY_NAMES } from '../../config/constants.js';
@@ -8,26 +8,51 @@ import { appState } from '../../state/appState.js';
 import { calculateResults } from '../../utils/calculator.js';
 
 let currentRevealedLevel = 0; // 0: 시작전, 1: 장려상, 2: 우수상, 3: 최우수상
+let ceremonyConfettiInstance = null;
 
 export function triggerConfetti() {
-    if (typeof confetti === 'function') {
-        const count = 250;
-        const defaults = { origin: { y: 0.6 } };
+    if (typeof confetti !== 'function') return;
 
-        function fire(particleRatio, opts) {
-            confetti({
-                ...defaults,
-                ...opts,
-                particleCount: Math.floor(count * particleRatio)
-            });
+    let targetConfetti = confetti;
+
+    // 브라우저가 전체화면(Fullscreen Top Layer) 상태일 때는 body가 아닌 전체화면 요소 내부에 캔버스를 붙여야 보임
+    const fullscreenEl = document.fullscreenElement || document.getElementById('award-ceremony-container');
+    if (fullscreenEl) {
+        let canvas = fullscreenEl.querySelector('#ceremony-confetti-canvas');
+        if (!canvas) {
+            canvas = document.createElement('canvas');
+            canvas.id = 'ceremony-confetti-canvas';
+            canvas.style.position = 'fixed';
+            canvas.style.top = '0';
+            canvas.style.left = '0';
+            canvas.style.width = '100vw';
+            canvas.style.height = '100vh';
+            canvas.style.pointerEvents = 'none';
+            canvas.style.zIndex = '999999';
+            fullscreenEl.appendChild(canvas);
+            ceremonyConfettiInstance = confetti.create(canvas, { resize: true, useWorker: true });
         }
-
-        fire(0.25, { spread: 30, startVelocity: 60 });
-        fire(0.2, { spread: 70 });
-        fire(0.35, { spread: 110, decay: 0.91, scalar: 1.1 });
-        fire(0.1, { spread: 130, startVelocity: 30, decay: 0.92, scalar: 1.3 });
-        fire(0.1, { spread: 130, startVelocity: 50 });
+        if (ceremonyConfettiInstance) {
+            targetConfetti = ceremonyConfettiInstance;
+        }
     }
+
+    const count = 300;
+    const defaults = { origin: { y: 0.6 } };
+
+    function fire(particleRatio, opts) {
+        targetConfetti({
+            ...defaults,
+            ...opts,
+            particleCount: Math.floor(count * particleRatio)
+        });
+    }
+
+    fire(0.25, { spread: 35, startVelocity: 65 });
+    fire(0.2, { spread: 75 });
+    fire(0.35, { spread: 115, decay: 0.91, scalar: 1.2 });
+    fire(0.1, { spread: 135, startVelocity: 35, decay: 0.92, scalar: 1.4 });
+    fire(0.1, { spread: 145, startVelocity: 60 });
 }
 
 function getCeremonyCardsData() {
@@ -137,7 +162,7 @@ export function renderAwardCeremony() {
     const { topWinner, runnerUp, encouragementWinners, selectedCategory, presenters } = getCeremonyCardsData();
 
     let html = `
-        <div id="award-ceremony-container" class="space-y-6 transition-all">
+        <div id="award-ceremony-container" class="space-y-6 transition-all relative">
             <!-- 시상식 상단 컨트롤 바 -->
             <div class="p-4 md:p-5 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-sky-500/10 border border-amber-200 rounded-2xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
