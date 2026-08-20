@@ -216,19 +216,19 @@ export function renderAwardCeremony(isStandalone = false) {
     let headerHtml = '';
 
     if (isStandalone) {
-        // 별도 창(대형 스크린/빔프로젝터 송출 전용) 웅장한 무대 헤더
+        // 별도 창(대형 스크린/빔프로젝터 송출 전용) 세련된 무대 헤더 (수상자 카드 집중 부각)
         headerHtml = `
-            <div class="py-7 md:py-10 px-6 md:px-12 bg-gradient-to-r from-amber-500/15 via-amber-500/5 to-sky-500/15 border-2 border-amber-300/80 rounded-3xl text-center shadow-lg mb-6">
-                <div class="inline-flex items-center gap-2 mb-2">
-                    <span class="text-xs md:text-sm font-extrabold tracking-widest text-amber-700 uppercase bg-amber-100 border border-amber-300 px-4 py-1 rounded-full shadow-xs">
+            <div class="py-4 md:py-6 px-6 md:px-10 bg-gradient-to-r from-amber-500/15 via-amber-500/5 to-sky-500/15 border-2 border-amber-300/80 rounded-2xl text-center shadow-md mb-4">
+                <div class="inline-flex items-center gap-1.5 mb-1.5">
+                    <span class="text-[11px] md:text-xs font-extrabold tracking-widest text-amber-700 uppercase bg-amber-100 border border-amber-300 px-3 py-0.5 rounded-full shadow-xs">
                         🏆 GRAND AWARD CEREMONY
                     </span>
                 </div>
-                <h1 class="text-3xl md:text-5xl lg:text-6xl font-black text-slate-900 tracking-tight leading-tight mt-1">
+                <h1 class="text-2xl md:text-3xl lg:text-4xl font-black text-slate-900 tracking-tight leading-tight">
                     2026 경영혁신 경진대회 시상식 
-                    <span class="inline-block text-amber-600 font-black ml-2 md:ml-3 drop-shadow-sm">(${categoryName} 부문)</span>
+                    <span class="inline-block text-amber-600 font-black ml-2 drop-shadow-xs">(${categoryName} 부문)</span>
                 </h1>
-                <p class="text-base md:text-xl lg:text-2xl text-slate-600 font-semibold mt-3">
+                <p class="text-xs md:text-sm lg:text-base text-slate-500 font-medium mt-1">
                     영예의 수상자를 발표합니다.
                 </p>
             </div>
