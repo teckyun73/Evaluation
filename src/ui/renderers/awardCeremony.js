@@ -1,6 +1,6 @@
 /**
  * awardCeremony.js
- * 시상식 순차 공개(Award Ceremony Reveal), 축하 컨페티 효과, 5가지 BGM 테마 선택 및 전체화면(Fullscreen) 모듈
+ * 시상식 순차 공개(Award Ceremony Reveal), 축하 컨페티 효과, 5가지 고음질 오케스트라 BGM 선택 및 전체화면(Fullscreen) 모듈
  */
 
 import { CATEGORY_DISPLAY_NAMES } from '../../config/constants.js';
@@ -186,13 +186,13 @@ export function renderAwardCeremony() {
     html += `
                     </select>
 
-                    <!-- 5가지 BGM 테마 선택 드롭다운 -->
+                    <!-- 5가지 고음질 오케스트라 실황 MP3 BGM 테마 선택 -->
                     <select id="ceremony-bgm-theme-select" class="px-3 py-2 bg-white border border-purple-300 rounded-lg shadow-sm font-bold text-xs md:text-sm text-purple-900 focus:outline-none focus:ring-2 focus:ring-purple-500">
-                        <option value="symphony" ${currentTheme === 'symphony' ? 'selected' : ''}>🏛️ 웅장한 오케스트라</option>
-                        <option value="victory" ${currentTheme === 'victory' ? 'selected' : ''}>🏆 승리의 팡파레 앤섬</option>
-                        <option value="tech" ${currentTheme === 'tech' ? 'selected' : ''}>🌌 미래지향 테크 신스</option>
-                        <option value="emotion" ${currentTheme === 'emotion' ? 'selected' : ''}>✨ 감동의 축하 멜로디</option>
-                        <option value="suspense" ${currentTheme === 'suspense' ? 'selected' : ''}>🥁 긴장감 서스펜스</option>
+                        <option value="symphony" ${currentTheme === 'symphony' ? 'selected' : ''}>🏛️ 위풍당당 행진곡 (엘가)</option>
+                        <option value="victory" ${currentTheme === 'victory' ? 'selected' : ''}>🏆 투우사의 행진 (비제)</option>
+                        <option value="emotion" ${currentTheme === 'emotion' ? 'selected' : ''}>✨ 캐논 변주곡 (파헬벨)</option>
+                        <option value="glory" ${currentTheme === 'glory' ? 'selected' : ''}>🌌 환희의 송가 (베토벤)</option>
+                        <option value="suspense" ${currentTheme === 'suspense' ? 'selected' : ''}>🥁 행성 '화성' 서스펜스 (홀스트)</option>
                     </select>
 
                     <!-- 시상식 배경음악(BGM) 토글 버튼 -->
@@ -291,14 +291,14 @@ export function handleNextReveal() {
     }
 
     if (currentRevealedLevel === 1 || currentRevealedLevel === 2) {
-        // 장려상 / 우수상: 짧은 드럼롤 후 팡파레
+        // 장려상 / 우수상: 실제 드럼롤 후 승리의 팡파레
         soundEngine.playDrumRoll(0.5);
         setTimeout(() => {
             updateCeremonyCards();
             soundEngine.playRevealFanfare();
         }, 500);
     } else if (currentRevealedLevel === 3) {
-        // 최우수상: 긴장감 넘치는 긴 드럼롤 후 대형 팡파레 + 환호성 + 폭죽 발사!
+        // 최우수상: 실제 드럼롤 후 대형 브라스 팡파레 + 기립 박수갈채 + 대형 폭죽 발사!
         soundEngine.playDrumRoll(0.9);
         setTimeout(() => {
             updateCeremonyCards();
