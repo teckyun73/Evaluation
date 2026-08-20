@@ -623,6 +623,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 soundBtn.innerHTML = `<span>${isMuted ? '🔇 음소거' : '🔊 효과음 ON'}</span>`;
             }
 
+            // 시상식 별도 창 열기 버튼 (듀얼모니터/빔프로젝터용)
+            if (e.target.closest('#open-ceremony-window-btn')) {
+                window.open(
+                    './ceremony.html', 
+                    'AwardCeremonyPopout', 
+                    'width=1920,height=1080,menubar=no,toolbar=no,location=no,status=no,resizable=yes'
+                );
+            }
+
             // 시상식 전체화면 모드 토글 버튼
             if (e.target.closest('#toggle-ceremony-fullscreen-btn')) {
                 const ceremonyContainer = document.getElementById('award-ceremony-container');
