@@ -1,0 +1,257 @@
+/* ==========================================================================
+   Base & Typography
+   ========================================================================== */
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background-color: #f8fafc;
+    color: #1e293b;
+    margin: 0;
+    padding: 0;
+}
+
+/* ==========================================================================
+   Tab Navigation & Role Buttons
+   ========================================================================== */
+.tab-button {
+    transition: all 0.2s ease-in-out;
+}
+
+.tab-button.active {
+    border-color: #0ea5e9;
+    color: #0ea5e9;
+    background-color: #f0f9ff;
+    font-weight: 600;
+}
+
+.role-selector-btn.active {
+    background-color: #0ea5e9;
+    color: #ffffff;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+}
+
+.role-selector-btn:not(.active) {
+    background-color: #f1f5f9;
+    color: #64748b;
+}
+
+/* ==========================================================================
+   Table & Score Inputs
+   ========================================================================== */
+.score-input {
+    transition: all 0.2s ease-in-out;
+}
+
+.score-input:focus {
+    transform: scale(1.05);
+    box-shadow: 0 0 0 2px #0ea5e9;
+}
+
+.score-input.input-error {
+    border-color: #ef4444 !important;
+    background-color: #fef2f2 !important;
+    box-shadow: 0 0 0 2px #ef4444 !important;
+}
+
+.score-input-cell {
+    text-align: center;
+}
+
+/* Sticky Column Shadow for Mobile Scroll */
+.sticky-col {
+    position: sticky;
+    left: 0;
+    z-index: 10;
+    box-shadow: 2px 0 5px -2px rgba(0, 0, 0, 0.1);
+}
+
+/* ==========================================================================
+   Autosave Status Badge
+   ========================================================================== */
+.autosave-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    padding: 4px 10px;
+    border-radius: 9999px;
+    transition: all 0.3s ease-in-out;
+}
+
+.autosave-saving {
+    background-color: #eff6ff;
+    color: #0284c7;
+    border: 1px solid #bae6fd;
+}
+
+.autosave-saved {
+    background-color: #f0fdf4;
+    color: #16a34a;
+    border: 1px solid #bbf7d0;
+}
+
+.autosave-error {
+    background-color: #fef2f2;
+    color: #dc2626;
+    border: 1px solid #fecaca;
+}
+
+/* ==========================================================================
+   Admin Progress Dashboard
+   ========================================================================== */
+.admin-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 1rem;
+    padding: 1.25rem;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+.admin-card:hover {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.progress-bar-bg {
+    background-color: #e2e8f0;
+    border-radius: 9999px;
+    overflow: hidden;
+    height: 8px;
+    width: 100%;
+}
+
+.progress-bar-fill {
+    height: 100%;
+    border-radius: 9999px;
+    transition: width 0.5s ease-in-out;
+}
+
+/* ==========================================================================
+   Award Ceremony Cards & Reveal Animation
+   ========================================================================== */
+.ceremony-card {
+    perspective: 1000px;
+}
+
+.ceremony-card.hidden-award {
+    opacity: 0.5;
+    filter: grayscale(0.8);
+    transform: translateY(10px);
+}
+
+.ceremony-card.revealed {
+    opacity: 1;
+    filter: none;
+    animation: revealCard 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes revealCard {
+    0% {
+        transform: scale(0.9) rotateY(40deg);
+        opacity: 0;
+    }
+    100% {
+        transform: scale(1) rotateY(0deg);
+        opacity: 1;
+    }
+}
+
+/* ==========================================================================
+   Presentation Fullscreen Mode
+   ========================================================================== */
+#presentation-card-container:fullscreen {
+    background-color: #ffffff;
+    padding: 2rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    width: 100vw;
+    height: 100vh;
+}
+
+#presentation-card-container:fullscreen .chart-container {
+    max-width: 90vw !important;
+    height: 75vh !important;
+}
+
+/* ==========================================================================
+   Chart Container
+   ========================================================================== */
+.chart-container {
+    position: relative;
+    width: 100%;
+    max-width: 800px;
+}
+
+/* ==========================================================================
+   Loader / Spinner
+   ========================================================================== */
+.loader {
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid #0ea5e9;
+    border-radius: 50%;
+    width: 14px;
+    height: 14px;
+    animation: spin 1s linear infinite;
+    display: inline-block;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* ==========================================================================
+   Modal Transitions
+   ========================================================================== */
+#messageModal {
+    transition: opacity 0.3s ease-in-out;
+}
+
+#modal-content {
+    transition: all 0.3s ease-in-out;
+}
+
+/* ==========================================================================
+   Print Style (A4 Landscape & Portrait Optimization)
+   ========================================================================== */
+@media print {
+    body {
+        background-color: #ffffff !important;
+        color: #000000 !important;
+        font-size: 11pt;
+    }
+    #tab-buttons, 
+    header button, 
+    #userInfo, 
+    .submit-btn, 
+    .autosave-badge, 
+    #admin-dashboard-container button,
+    #login-container,
+    .download-single-chart-btn,
+    #download-presentation-chart-btn,
+    #toggle-presentation-fullscreen-btn,
+    #download-radar-chart-btn,
+    #next-reveal-btn,
+    #reset-ceremony-btn,
+    #offline-banner {
+        display: none !important;
+    }
+    main {
+        box-shadow: none !important;
+        border: none !important;
+        padding: 0 !important;
+    }
+    .chart-container {
+        max-width: 100% !important;
+        page-break-inside: avoid;
+    }
+    table {
+        page-break-inside: auto;
+    }
+    tr {
+        page-break-inside: avoid;
+        page-break-after: auto;
+    }
+}
