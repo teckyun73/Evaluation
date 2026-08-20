@@ -1,6 +1,6 @@
 /**
  * soundEffects.js
- * 시상식 전용 5가지 다채로운 BGM 테마 및 실감형 효과음 엔진
+ * 시상식 전용 5가지 다채로운 BGM 테마, 스마트 음소거 복원 및 실감형 효과음 엔진
  */
 
 class SoundEngine {
@@ -8,8 +8,9 @@ class SoundEngine {
         this.ctx = null;
         this.isMuted = false;
         this.isBgmPlaying = false;
+        this.wasBgmPlayingBeforeMute = false;
         this.bgmTimer = null;
-        this.currentTheme = 'symphony'; // symphony, victory, tech, emotion, suspense
+        this.currentTheme = 'symphony';
     }
 
     async init() {
@@ -24,12 +25,25 @@ class SoundEngine {
         }
     }
 
-    toggleMute() {
+    async toggleMute() {
+        await this.init();
         this.isMuted = !this.isMuted;
-        if (this.isMuted && this.isBgmPlaying) {
-            this.stopBgm();
+
+        if (this.isMuted) {
+            // 음소거 켤 때: 재생 중이던 BGM 상태를 기억하고 일시 중지
+            if (this.isBgmPlaying) {
+                this.wasBgmPlayingBeforeMute = true;
+                this.stopBgm();
+            }
+        } else {
+            // 음소거 풀 때: 이전에 BGM이 켜져 있었다면 자동으로 다시 재생 시작
+            if (this.wasBgmPlayingBeforeMute) {
+                this.wasBgmPlayingBeforeMute = false;
+                this.startBgm();
+            }
         }
-        return this.isMuted;
+
+        return { isMuted: this.isMuted, isBgmPlaying: this.isBgmPlaying };
     }
 
     setTheme(themeKey) {
@@ -215,9 +229,12 @@ class SoundEngine {
     async toggleBgm() {
         await this.init();
         if (this.isBgmPlaying) {
+            this.wasBgmPlayingBeforeMute = false;
             this.stopBgm();
             return false;
         } else {
+            this.isMuted = false; // BGM 재생 시 음소거 자동 해제
+            this.wasBgmPlayingBeforeMute = false;
             this.startBgm();
             return true;
         }
@@ -233,7 +250,6 @@ class SoundEngine {
             const now = this.ctx.currentTime;
 
             switch (this.currentTheme) {
-                // 1. 🏛️ 웅장한 오케스트라 (Grand Symphony)
                 case 'symphony': {
                     const prog = [
                         { bass: 130.81, chord: [261.63, 329.63, 392.00], arpeggio: [523.25, 659.25, 783.99, 1046.50] },
@@ -249,13 +265,12 @@ class SoundEngine {
                     break;
                 }
 
-                // 2. 🏆 승리의 팡파레 앤섬 (Victory Anthem)
                 case 'victory': {
                     const prog = [
-                        { bass: 146.83, melody: [587.33, 739.99, 880.00, 1174.66] }, // D Major
-                        { bass: 110.00, melody: [440.00, 554.37, 659.25, 880.00] },   // A Major
-                        { bass: 123.47, melody: [493.88, 587.33, 739.99, 987.77] },   // B Minor
-                        { bass: 98.00,  melody: [392.00, 493.88, 587.33, 783.99] }    // G Major
+                        { bass: 146.83, melody: [587.33, 739.99, 880.00, 1174.66] },
+                        { bass: 110.00, melody: [440.00, 554.37, 659.25, 880.00] },
+                        { bass: 123.47, melody: [493.88, 587.33, 739.99, 987.77] },
+                        { bass: 98.00,  melody: [392.00, 493.88, 587.33, 783.99] }
                     ];
                     const cur = prog[step % prog.length];
                     this.playSynthNote(cur.bass, now, 2.0, 'square', 0.35, 800);
@@ -266,12 +281,10 @@ class SoundEngine {
                     break;
                 }
 
-                // 3. 🌌 미래지향 테크/AI 신스 (Futuristic Innovation)
                 case 'tech': {
-                    const baseFreqs = [110.00, 130.81, 146.83, 164.81]; // A, C, D, E
+                    const baseFreqs = [110.00, 130.81, 146.83, 164.81];
                     const curBase = baseFreqs[step % baseFreqs.length];
-                    this.playSynthNote(curBase, now, 2.4, 'sawtooth', 0.3, 600); // 묵직한 신스 베이스
-                    // 빠른 디지털 아르페지오
+                    this.playSynthNote(curBase, now, 2.4, 'sawtooth', 0.3, 600);
                     for (let i = 0; i < 8; i++) {
                         const freq = curBase * (2 + (i % 4) * 0.5);
                         this.playSynthNote(freq, now + (i * 0.3), 0.25, 'triangle', 0.22, 2500);
@@ -280,13 +293,12 @@ class SoundEngine {
                     break;
                 }
 
-                // 4. ✨ 감동과 축하의 멜로디 (Emotional Celebration)
                 case 'emotion': {
                     const prog = [
-                        { bass: 130.81, chord: [261.63, 329.63, 392.00, 493.88] }, // Cmaj7
-                        { bass: 110.00, chord: [220.00, 261.63, 329.63, 392.00] }, // Am7
-                        { bass: 174.61, chord: [174.61, 220.00, 261.63, 329.63] }, // Fmaj7
-                        { bass: 196.00, chord: [196.00, 246.94, 293.66, 349.23] }  // G7
+                        { bass: 130.81, chord: [261.63, 329.63, 392.00, 493.88] },
+                        { bass: 110.00, chord: [220.00, 261.63, 329.63, 392.00] },
+                        { bass: 174.61, chord: [174.61, 220.00, 261.63, 329.63] },
+                        { bass: 196.00, chord: [196.00, 246.94, 293.66, 349.23] }
                     ];
                     const cur = prog[step % prog.length];
                     this.playSynthNote(cur.bass, now, 3.8, 'sine', 0.45, 500);
@@ -296,17 +308,14 @@ class SoundEngine {
                     break;
                 }
 
-                // 5. 🥁 긴장감 서스펜스 (Tension Suspense)
                 case 'suspense': {
-                    // 심장 박동 펄스 킥
                     this.playKick(now);
                     this.playKick(now + 0.3);
                     this.playKick(now + 1.0);
                     this.playKick(now + 1.3);
 
-                    // 으스스하고 긴장감 넘치는 저음 스트링
-                    this.playSynthNote(65.41, now, 2.0, 'sawtooth', 0.35, 300); // Low C2
-                    this.playSynthNote(69.30, now + 1.0, 1.0, 'sawtooth', 0.3, 350); // Low C#2 (반음 긴장)
+                    this.playSynthNote(65.41, now, 2.0, 'sawtooth', 0.35, 300);
+                    this.playSynthNote(69.30, now + 1.0, 1.0, 'sawtooth', 0.3, 350);
 
                     this.bgmTimer = setTimeout(loop, 2000);
                     break;

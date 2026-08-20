@@ -587,12 +587,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 handleResetCeremony();
             }
 
-            // 시상식 사운드 효과음 토글 버튼
+            // 시상식 사운드 효과음 토글 버튼 (음소거 해제 시 BGM 상태 자동 동기화)
             const soundBtn = e.target.closest('#toggle-ceremony-sound-btn');
             if (soundBtn) {
-                const isMuted = soundEngine.toggleMute();
+                const { isMuted, isBgmPlaying } = await soundEngine.toggleMute();
                 soundBtn.className = `text-xs md:text-sm font-semibold px-3 py-2 ${isMuted ? 'bg-slate-300 text-slate-600' : 'bg-emerald-600 text-white'} rounded-lg transition shadow flex items-center gap-1`;
                 soundBtn.innerHTML = `<span>${isMuted ? '🔇 음소거' : '🔊 효과음 ON'}</span>`;
+
+                // BGM 버튼 UI 완벽 동기화
+                const bgmBtn = document.getElementById('toggle-ceremony-bgm-btn');
+                if (bgmBtn) {
+                    bgmBtn.className = `text-xs md:text-sm font-semibold px-3 py-2 ${isBgmPlaying ? 'bg-purple-600 text-white' : 'bg-white border border-slate-300 text-slate-700'} rounded-lg transition shadow flex items-center gap-1`;
+                    bgmBtn.innerHTML = `<span>${isBgmPlaying ? '🎵 BGM 정지' : '🎶 BGM 재생'}</span>`;
+                }
             }
 
             // 시상식 배경음악(BGM) 토글 버튼
@@ -601,6 +608,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 const isPlaying = await soundEngine.toggleBgm();
                 bgmBtn.className = `text-xs md:text-sm font-semibold px-3 py-2 ${isPlaying ? 'bg-purple-600 text-white' : 'bg-white border border-slate-300 text-slate-700'} rounded-lg transition shadow flex items-center gap-1`;
                 bgmBtn.innerHTML = `<span>${isPlaying ? '🎵 BGM 정지' : '🎶 BGM 재생'}</span>`;
+
+                // BGM 재생 시 음소거 해제 상태 UI 반영
+                const soundBtn = document.getElementById('toggle-ceremony-sound-btn');
+                if (soundBtn && isPlaying) {
+                    soundBtn.className = `text-xs md:text-sm font-semibold px-3 py-2 bg-emerald-600 text-white rounded-lg transition shadow flex items-center gap-1`;
+                    soundBtn.innerHTML = `<span>🔊 효과음 ON</span>`;
+                }
             }
 
             // 시상식 전체화면 모드 토글 버튼
