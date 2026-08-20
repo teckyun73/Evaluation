@@ -1,6 +1,6 @@
 /**
  * awardCeremony.js
- * 시상식 순차 공개(Award Ceremony Reveal), 축하 컨페티 효과, BGM & 효과음 및 전체화면(Fullscreen) 모듈
+ * 시상식 순차 공개(Award Ceremony Reveal), 축하 컨페티 효과, 5가지 BGM 테마 선택 및 전체화면(Fullscreen) 모듈
  */
 
 import { CATEGORY_DISPLAY_NAMES } from '../../config/constants.js';
@@ -163,6 +163,7 @@ export function renderAwardCeremony() {
     const { topWinner, runnerUp, encouragementWinners, selectedCategory, presenters } = getCeremonyCardsData();
     const isMuted = soundEngine.isMuted;
     const isBgmPlaying = soundEngine.isBgmPlaying;
+    const currentTheme = soundEngine.currentTheme;
 
     let html = `
         <div id="award-ceremony-container" class="space-y-6 transition-all relative">
@@ -174,6 +175,7 @@ export function renderAwardCeremony() {
                     <p class="text-sm text-slate-600 mt-0.5">부문별 영예의 수상자를 순차적으로 발표합니다.</p>
                 </div>
                 <div class="flex flex-wrap items-center gap-2 md:gap-3">
+                    <!-- 부문 선택 -->
                     <select id="ceremony-category-select" class="px-3.5 py-2 bg-white border border-slate-300 rounded-lg shadow-sm font-bold text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
     `;
 
@@ -184,14 +186,23 @@ export function renderAwardCeremony() {
     html += `
                     </select>
 
-                    <!-- 사운드 효과음 토글 버튼 -->
-                    <button id="toggle-ceremony-sound-btn" class="text-xs md:text-sm font-semibold px-3 py-2 ${isMuted ? 'bg-slate-300 text-slate-600' : 'bg-emerald-600 text-white'} rounded-lg transition shadow flex items-center gap-1">
-                        <span>${isMuted ? '🔇 음소거' : '🔊 효과음 ON'}</span>
-                    </button>
+                    <!-- 5가지 BGM 테마 선택 드롭다운 -->
+                    <select id="ceremony-bgm-theme-select" class="px-3 py-2 bg-white border border-purple-300 rounded-lg shadow-sm font-bold text-xs md:text-sm text-purple-900 focus:outline-none focus:ring-2 focus:ring-purple-500">
+                        <option value="symphony" ${currentTheme === 'symphony' ? 'selected' : ''}>🏛️ 웅장한 오케스트라</option>
+                        <option value="victory" ${currentTheme === 'victory' ? 'selected' : ''}>🏆 승리의 팡파레 앤섬</option>
+                        <option value="tech" ${currentTheme === 'tech' ? 'selected' : ''}>🌌 미래지향 테크 신스</option>
+                        <option value="emotion" ${currentTheme === 'emotion' ? 'selected' : ''}>✨ 감동의 축하 멜로디</option>
+                        <option value="suspense" ${currentTheme === 'suspense' ? 'selected' : ''}>🥁 긴장감 서스펜스</option>
+                    </select>
 
                     <!-- 시상식 배경음악(BGM) 토글 버튼 -->
                     <button id="toggle-ceremony-bgm-btn" class="text-xs md:text-sm font-semibold px-3 py-2 ${isBgmPlaying ? 'bg-purple-600 text-white' : 'bg-white border border-slate-300 text-slate-700'} rounded-lg transition shadow flex items-center gap-1">
                         <span>${isBgmPlaying ? '🎵 BGM 정지' : '🎶 BGM 재생'}</span>
+                    </button>
+
+                    <!-- 사운드 효과음 토글 버튼 -->
+                    <button id="toggle-ceremony-sound-btn" class="text-xs md:text-sm font-semibold px-3 py-2 ${isMuted ? 'bg-slate-300 text-slate-600' : 'bg-emerald-600 text-white'} rounded-lg transition shadow flex items-center gap-1">
+                        <span>${isMuted ? '🔇 음소거' : '🔊 효과음 ON'}</span>
                     </button>
 
                     <button id="reset-ceremony-btn" class="text-xs md:text-sm font-semibold px-3.5 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg transition">다시 진행</button>

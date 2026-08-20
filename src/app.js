@@ -660,6 +660,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // 변경 이벤트 (드롭다운)
         tabContent.addEventListener('change', (e) => {
+            // BGM 테마 선택 변경
+            if (e.target.id === 'ceremony-bgm-theme-select') {
+                soundEngine.setTheme(e.target.value);
+                return;
+            }
+
             if (e.target.id === 'ceremony-category-select') {
                 appState.setPresentationCategory(e.target.value);
                 handleResetCeremony();

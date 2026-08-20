@@ -1,6 +1,6 @@
 /**
  * soundEffects.js
- * 시상식 전용 Web Audio API 기반 긴장감 드럼롤, 승리의 팡파레, 환호 박수 및 웅장한 시상식 BGM 엔진
+ * 시상식 전용 5가지 다채로운 BGM 테마 및 실감형 효과음 엔진
  */
 
 class SoundEngine {
@@ -9,7 +9,7 @@ class SoundEngine {
         this.isMuted = false;
         this.isBgmPlaying = false;
         this.bgmTimer = null;
-        this.bgmNodes = [];
+        this.currentTheme = 'symphony'; // symphony, victory, tech, emotion, suspense
     }
 
     async init() {
@@ -32,6 +32,14 @@ class SoundEngine {
         return this.isMuted;
     }
 
+    setTheme(themeKey) {
+        this.currentTheme = themeKey;
+        if (this.isBgmPlaying) {
+            this.stopBgm();
+            this.startBgm();
+        }
+    }
+
     // 1. 긴장감 넘치는 두구두구 드럼롤 (Drum Roll)
     async playDrumRoll(duration = 1.0) {
         if (this.isMuted) return;
@@ -39,12 +47,12 @@ class SoundEngine {
         if (!this.ctx) return;
 
         const now = this.ctx.currentTime;
-        const rollCount = Math.floor(duration * 24); // 초당 24회 비트 타격
+        const rollCount = Math.floor(duration * 24);
         const interval = duration / rollCount;
 
         for (let i = 0; i < rollCount; i++) {
             const time = now + (i * interval);
-            const volume = 0.15 + (i / rollCount) * 0.45; // 점점 고조되는 음량
+            const volume = 0.15 + (i / rollCount) * 0.45;
 
             const bufferSize = this.ctx.sampleRate * 0.05;
             const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
@@ -82,10 +90,10 @@ class SoundEngine {
 
         const now = this.ctx.currentTime;
         const notes = [
-            { freq: 523.25, time: 0.0, dur: 0.18 }, // C5
-            { freq: 659.25, time: 0.18, dur: 0.18 }, // E5
-            { freq: 783.99, time: 0.36, dur: 0.25 }, // G5
-            { freq: 1046.50, time: 0.61, dur: 0.8 }  // C6 (High C)
+            { freq: 523.25, time: 0.0, dur: 0.18 },
+            { freq: 659.25, time: 0.18, dur: 0.18 },
+            { freq: 783.99, time: 0.36, dur: 0.25 },
+            { freq: 1046.50, time: 0.61, dur: 0.8 }
         ];
 
         notes.forEach(({ freq, time, dur }) => {
@@ -125,17 +133,15 @@ class SoundEngine {
         if (!this.ctx) return;
 
         const now = this.ctx.currentTime;
-
-        // 화려하고 웅장한 시상식 팡파레 멜로디 (빰-빰-빰-빠밤~ 빠라바라밤~!)
         const fanfareMelody = [
-            { freq: 523.25, time: 0.0, dur: 0.15 },  // C5
-            { freq: 523.25, time: 0.15, dur: 0.15 }, // C5
-            { freq: 523.25, time: 0.30, dur: 0.15 }, // C5
-            { freq: 659.25, time: 0.45, dur: 0.35 }, // E5
-            { freq: 523.25, time: 0.80, dur: 0.15 }, // C5
-            { freq: 659.25, time: 0.95, dur: 0.15 }, // E5
-            { freq: 783.99, time: 1.10, dur: 0.35 }, // G5
-            { freq: 1046.50, time: 1.45, dur: 1.5 }  // C6 (대망의 피날레)
+            { freq: 523.25, time: 0.0, dur: 0.15 },
+            { freq: 523.25, time: 0.15, dur: 0.15 },
+            { freq: 523.25, time: 0.30, dur: 0.15 },
+            { freq: 659.25, time: 0.45, dur: 0.35 },
+            { freq: 523.25, time: 0.80, dur: 0.15 },
+            { freq: 659.25, time: 0.95, dur: 0.15 },
+            { freq: 783.99, time: 1.10, dur: 0.35 },
+            { freq: 1046.50, time: 1.45, dur: 1.5 }
         ];
 
         fanfareMelody.forEach(({ freq, time, dur }) => {
@@ -147,7 +153,7 @@ class SoundEngine {
             oscLead.frequency.setValueAtTime(freq, now + time);
 
             oscSub.type = 'square';
-            oscSub.frequency.setValueAtTime(freq / 2, now + time); // 옥타브 아래 풍성한 저음
+            oscSub.frequency.setValueAtTime(freq / 2, now + time);
 
             const filter = this.ctx.createBiquadFilter();
             filter.type = 'lowpass';
@@ -167,7 +173,6 @@ class SoundEngine {
             oscSub.stop(now + time + dur);
         });
 
-        // 1초 뒤 시작되는 우레와 같은 박수갈채와 환호
         this.playApplause(now + 1.0, 4.0);
     }
 
@@ -180,8 +185,6 @@ class SoundEngine {
         const data = buffer.getChannelData(0);
 
         for (let i = 0; i < bufferSize; i++) {
-            const t = i / this.ctx.sampleRate;
-            // 박수 소리 + 사람들의 환호성 느낌 시뮬레이션
             const noise = (Math.random() * 2 - 1);
             const clapImpulse = Math.random() > 0.85 ? 1.5 : 0.3;
             const envelope = Math.sin((i / bufferSize) * Math.PI);
@@ -208,7 +211,7 @@ class SoundEngine {
         noiseNode.stop(startTime + duration);
     }
 
-    // 5. 웅장한 시상식 배경음악 루프 (Orchestral Theme BGM)
+    // 5. 시상식 BGM 토글
     async toggleBgm() {
         await this.init();
         if (this.isBgmPlaying) {
@@ -224,86 +227,138 @@ class SoundEngine {
         if (this.isMuted || !this.ctx) return;
         this.isBgmPlaying = true;
 
-        // 시상식에 어울리는 웅장하고 감동적인 4마디 화음 & 아르페지오 멜로디 테마
-        const progression = [
-            // 1마디: C Major (C4, E4, G4, C5)
-            { bass: 130.81, chord: [261.63, 329.63, 392.00], arpeggio: [523.25, 659.25, 783.99, 1046.50] },
-            // 2마디: G Major (G3, D4, G4, B4)
-            { bass: 98.00,  chord: [196.00, 293.66, 392.00], arpeggio: [493.88, 587.33, 783.99, 987.77] },
-            // 3마디: A Minor (A3, C4, E4, A4)
-            { bass: 110.00, chord: [220.00, 261.63, 329.63], arpeggio: [440.00, 523.25, 659.25, 880.00] },
-            // 4마디: F Major (F3, C4, F4, A4)
-            { bass: 87.31,  chord: [174.61, 261.63, 349.23], arpeggio: [440.00, 523.25, 698.46, 880.00] }
-        ];
-
         let step = 0;
-        const playMeasure = () => {
+        const loop = () => {
             if (!this.isBgmPlaying || !this.ctx) return;
-
             const now = this.ctx.currentTime;
-            const current = progression[step % progression.length];
 
-            // 1. 웅장한 베이스음 (Bass Note)
-            const bassOsc = this.ctx.createOscillator();
-            const bassGain = this.ctx.createGain();
-            bassOsc.type = 'triangle';
-            bassOsc.frequency.setValueAtTime(current.bass, now);
-            bassGain.gain.setValueAtTime(0.4, now);
-            bassGain.gain.exponentialRampToValueAtTime(0.01, now + 3.2);
+            switch (this.currentTheme) {
+                // 1. 🏛️ 웅장한 오케스트라 (Grand Symphony)
+                case 'symphony': {
+                    const prog = [
+                        { bass: 130.81, chord: [261.63, 329.63, 392.00], arpeggio: [523.25, 659.25, 783.99, 1046.50] },
+                        { bass: 98.00,  chord: [196.00, 293.66, 392.00], arpeggio: [493.88, 587.33, 783.99, 987.77] },
+                        { bass: 110.00, chord: [220.00, 261.63, 329.63], arpeggio: [440.00, 523.25, 659.25, 880.00] },
+                        { bass: 87.31,  chord: [174.61, 261.63, 349.23], arpeggio: [440.00, 523.25, 698.46, 880.00] }
+                    ];
+                    const cur = prog[step % prog.length];
+                    this.playSynthNote(cur.bass, now, 3.2, 'triangle', 0.4, 400);
+                    cur.chord.forEach(f => this.playSynthNote(f, now, 3.2, 'sawtooth', 0.18, 1800));
+                    cur.arpeggio.forEach((f, idx) => this.playSynthNote(f, now + (idx * 0.75), 0.7, 'sine', 0.25, 3000));
+                    this.bgmTimer = setTimeout(loop, 3000);
+                    break;
+                }
 
-            bassOsc.connect(bassGain);
-            bassGain.connect(this.ctx.destination);
-            bassOsc.start(now);
-            bassOsc.stop(now + 3.2);
+                // 2. 🏆 승리의 팡파레 앤섬 (Victory Anthem)
+                case 'victory': {
+                    const prog = [
+                        { bass: 146.83, melody: [587.33, 739.99, 880.00, 1174.66] }, // D Major
+                        { bass: 110.00, melody: [440.00, 554.37, 659.25, 880.00] },   // A Major
+                        { bass: 123.47, melody: [493.88, 587.33, 739.99, 987.77] },   // B Minor
+                        { bass: 98.00,  melody: [392.00, 493.88, 587.33, 783.99] }    // G Major
+                    ];
+                    const cur = prog[step % prog.length];
+                    this.playSynthNote(cur.bass, now, 2.0, 'square', 0.35, 800);
+                    cur.melody.forEach((f, idx) => {
+                        this.playSynthNote(f, now + (idx * 0.5), 0.45, 'sawtooth', 0.3, 3500);
+                    });
+                    this.bgmTimer = setTimeout(loop, 2000);
+                    break;
+                }
 
-            // 2. 화음 패드 (Warm String/Brass Pad Chords)
-            current.chord.forEach(freq => {
-                const osc = this.ctx.createOscillator();
-                const gain = this.ctx.createGain();
+                // 3. 🌌 미래지향 테크/AI 신스 (Futuristic Innovation)
+                case 'tech': {
+                    const baseFreqs = [110.00, 130.81, 146.83, 164.81]; // A, C, D, E
+                    const curBase = baseFreqs[step % baseFreqs.length];
+                    this.playSynthNote(curBase, now, 2.4, 'sawtooth', 0.3, 600); // 묵직한 신스 베이스
+                    // 빠른 디지털 아르페지오
+                    for (let i = 0; i < 8; i++) {
+                        const freq = curBase * (2 + (i % 4) * 0.5);
+                        this.playSynthNote(freq, now + (i * 0.3), 0.25, 'triangle', 0.22, 2500);
+                    }
+                    this.bgmTimer = setTimeout(loop, 2400);
+                    break;
+                }
 
-                osc.type = 'sawtooth';
-                osc.frequency.setValueAtTime(freq, now);
+                // 4. ✨ 감동과 축하의 멜로디 (Emotional Celebration)
+                case 'emotion': {
+                    const prog = [
+                        { bass: 130.81, chord: [261.63, 329.63, 392.00, 493.88] }, // Cmaj7
+                        { bass: 110.00, chord: [220.00, 261.63, 329.63, 392.00] }, // Am7
+                        { bass: 174.61, chord: [174.61, 220.00, 261.63, 329.63] }, // Fmaj7
+                        { bass: 196.00, chord: [196.00, 246.94, 293.66, 349.23] }  // G7
+                    ];
+                    const cur = prog[step % prog.length];
+                    this.playSynthNote(cur.bass, now, 3.8, 'sine', 0.45, 500);
+                    cur.chord.forEach(f => this.playSynthNote(f, now, 3.8, 'triangle', 0.2, 1200));
+                    this.playSynthNote(cur.chord[3] * 2, now + 0.8, 2.5, 'sine', 0.25, 2000);
+                    this.bgmTimer = setTimeout(loop, 3600);
+                    break;
+                }
 
-                const filter = this.ctx.createBiquadFilter();
-                filter.type = 'lowpass';
-                filter.frequency.value = 1800; // 부드럽고 따뜻한 톤
+                // 5. 🥁 긴장감 서스펜스 (Tension Suspense)
+                case 'suspense': {
+                    // 심장 박동 펄스 킥
+                    this.playKick(now);
+                    this.playKick(now + 0.3);
+                    this.playKick(now + 1.0);
+                    this.playKick(now + 1.3);
 
-                gain.gain.setValueAtTime(0.01, now);
-                gain.gain.linearRampToValueAtTime(0.18, now + 0.6);
-                gain.gain.exponentialRampToValueAtTime(0.01, now + 3.2);
+                    // 으스스하고 긴장감 넘치는 저음 스트링
+                    this.playSynthNote(65.41, now, 2.0, 'sawtooth', 0.35, 300); // Low C2
+                    this.playSynthNote(69.30, now + 1.0, 1.0, 'sawtooth', 0.3, 350); // Low C#2 (반음 긴장)
 
-                osc.connect(filter);
-                filter.connect(gain);
-                gain.connect(this.ctx.destination);
-
-                osc.start(now);
-                osc.stop(now + 3.2);
-            });
-
-            // 3. 멜로디 아르페지오 (Bright Melodic Bells)
-            current.arpeggio.forEach((freq, idx) => {
-                const noteTime = now + (idx * 0.75);
-                const osc = this.ctx.createOscillator();
-                const gain = this.ctx.createGain();
-
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(freq, noteTime);
-
-                gain.gain.setValueAtTime(0.25, noteTime);
-                gain.gain.exponentialRampToValueAtTime(0.001, noteTime + 0.7);
-
-                osc.connect(gain);
-                gain.connect(this.ctx.destination);
-
-                osc.start(noteTime);
-                osc.stop(noteTime + 0.7);
-            });
+                    this.bgmTimer = setTimeout(loop, 2000);
+                    break;
+                }
+            }
 
             step++;
-            this.bgmTimer = setTimeout(playMeasure, 3000);
         };
 
-        playMeasure();
+        loop();
+    }
+
+    playSynthNote(freq, time, duration, type = 'sine', volume = 0.3, filterCutoff = 2000) {
+        if (!this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        const filter = this.ctx.createBiquadFilter();
+
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, time);
+
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(filterCutoff, time);
+
+        gain.gain.setValueAtTime(0.001, time);
+        gain.gain.linearRampToValueAtTime(volume, time + 0.1);
+        gain.gain.exponentialRampToValueAtTime(0.001, time + duration);
+
+        osc.connect(filter);
+        filter.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.start(time);
+        osc.stop(time + duration);
+    }
+
+    playKick(time) {
+        if (!this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.frequency.setValueAtTime(120, time);
+        osc.frequency.exponentialRampToValueAtTime(30, time + 0.2);
+
+        gain.gain.setValueAtTime(0.6, time);
+        gain.gain.exponentialRampToValueAtTime(0.001, time + 0.2);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.start(time);
+        osc.stop(time + 0.2);
     }
 
     stopBgm() {
