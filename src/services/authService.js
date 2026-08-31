@@ -63,7 +63,7 @@ export async function login(role, id, password) {
 
         const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
         if (!emailRegex.test(voterEmail)) {
-            throw new Error('비밀번호 칸에 올바른 이메일 주소를 입력해 주세요. (예: user@atec.co.kr)');
+            throw new Error('비밀번호 칸에 올바른 이메일 주소를 입력해 주세요. (예: gildong@atec.kr)');
         }
 
         // 이메일 기반 고유 세션 ID 생성

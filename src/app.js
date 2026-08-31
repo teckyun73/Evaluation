@@ -375,7 +375,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             if (passwordLabel) passwordLabel.textContent = '이메일';
             if (loginPasswordInput) {
-                loginPasswordInput.placeholder = '이메일 (예: gildong@atec.co.kr)';
+                loginPasswordInput.placeholder = '이메일 (예: gildong@atec.kr)';
                 loginPasswordInput.type = 'email';
             }
         } else if (role === 'admin') {
