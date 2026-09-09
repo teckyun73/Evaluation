@@ -67,14 +67,20 @@ export function switchYear(newYear, onUpdateCallback) {
  */
 export function setupConfigListener(callback) {
     const db = getDb();
+    const listenerYear = appState.currentYear;
     const configDocRef = doc(db, `/artifacts/${getTargetAppId()}/public/data/config`, 'default-config');
 
     const unsub = onSnapshot(configDocRef, (docSnap) => {
         if (docSnap.exists()) {
             const remoteConfig = docSnap.data();
-            appState.applyRemoteConfig(remoteConfig);
+            appState.applyRemoteConfig(remoteConfig, listenerYear);
             if (callback) callback(remoteConfig);
         } else {
+            // Firestore에 설정 문서가 존재하지 않을 때
+            if (listenerYear === 2025) {
+                // 2025년은 절대 불변 원본 마스터 강제 적용
+                appState.applyRemoteConfig(null, 2025);
+            }
             if (callback) callback(null);
         }
     }, (error) => {
@@ -89,6 +95,9 @@ export function setupConfigListener(callback) {
  * 대회 동적 설정을 Firestore에 영구 저장
  */
 export async function saveRemoteConfig(configData) {
+    if (appState.isArchiveMode()) {
+        throw new Error("과거 아카이브(2025년) 모드에서는 대회 설정을 저장할 수 없습니다. 과거 기록은 영구 보존됩니다.");
+    }
     const db = getDb();
     const configDocRef = doc(db, `/artifacts/${getTargetAppId()}/public/data/config`, 'default-config');
     await setDoc(configDocRef, {

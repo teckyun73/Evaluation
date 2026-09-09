@@ -12,6 +12,42 @@ export const EVENT_INFO = {
     TOTAL_VOTERS: 200 // 기본 투표자 정원
 };
 
+/**
+ * 2025년 과거 대회 영구 보존 원본 설정 (절대 불변 마스터 데이터)
+ */
+export const ORIGINAL_2025_CONFIG = {
+    eventInfo: {
+        YEAR: "2025",
+        TITLE: "2025 경영혁신 경진대회 평가 시스템",
+        SUBTITLE: "실시간 온라인 평가 & 투표 시스템",
+        DOC_LINK: "https://drive.google.com/file/d/1AyafN2H5GZ4dOcM6lpkk_ziknGKnJN-w/view?usp=drive_link",
+        DOC_TITLE: "2025년 경영혁신경진대회 식순 및 발표 요약문집",
+        TOTAL_VOTERS: 200
+    },
+    presenters: {
+        "6s": [
+            { id: "6s-1", name: "김동회 수석" },
+            { id: "6s-2", name: "김형수 선임" },
+            { id: "6s-3", name: "김하얀 사원" }
+        ],
+        "six_sigma": [
+            { id: "ss-1", name: "장동은 책임" },
+            { id: "ss-2", name: "이원근 책임" }
+        ],
+        "rnd": [
+            { id: "rd-1", name: "김동겸 책임" },
+            { id: "rd-2", name: "심선용 선임" },
+            { id: "rd-3", name: "임장수 책임" }
+        ],
+        "ai": [
+            { id: "ai-1", name: "엄동식 책임" },
+            { id: "ai-2", name: "최창준 선임" },
+            { id: "ai-3", name: "김선홍 선임" },
+            { id: "ai-4", name: "박영환 선임" }
+        ]
+    }
+};
+
 export const PRESENTERS = {
     "6s": [
         { id: "6s-1", name: "김동회 수석" },

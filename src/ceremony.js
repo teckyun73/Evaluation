@@ -32,11 +32,11 @@ async function initCeremony() {
     try {
         if (window.opener && window.opener.appState) {
             const parentState = window.opener.appState;
+            if (parentState.currentYear) appState.setYear(parentState.currentYear);
             if (parentState.presenters) appState.presenters = JSON.parse(JSON.stringify(parentState.presenters));
             if (parentState.evaluationCriteria) appState.evaluationCriteria = JSON.parse(JSON.stringify(parentState.evaluationCriteria));
             if (parentState.allScores) appState.allScores = JSON.parse(JSON.stringify(parentState.allScores));
             if (parentState.excellentPresenterSelections) appState.excellentPresenterSelections = JSON.parse(JSON.stringify(parentState.excellentPresenterSelections));
-            if (parentState.currentYear) appState.currentYear = parentState.currentYear;
             if (parentState.selectedPresentationCategory) appState.selectedPresentationCategory = parentState.selectedPresentationCategory;
         }
     } catch (e) {
