@@ -1,6 +1,7 @@
 /**
  * firestoreService.js
  * Firestore 실시간 리스너 구독, 점수/투표/설정 CRUD 및 배치 시뮬레이션 서비스
+ * (연도별 독립 네임스페이스 및 실시간 전환 지원)
  */
 
 import { 
@@ -14,28 +15,74 @@ import {
     getDocs, 
     writeBatch, 
     deleteField, 
-    appId 
+    getAppId 
 } from '../config/firebase.js';
 import { appState } from '../state/appState.js';
 import { generateUUID } from '../utils/helpers.js';
 import { hashPassword } from '../utils/crypto.js';
 
 /**
+ * 현재 활성 연도에 따른 Firestore appId(네임스페이스) 반환
+ */
+export function getTargetAppId() {
+    return getAppId(appState.currentYear);
+}
+
+// 활성 실시간 리스너 목록 (연도 전환 시 일괄 해제)
+let activeUnsubscribes = [];
+
+export function cleanupAllListeners() {
+    activeUnsubscribes.forEach(unsub => {
+        if (typeof unsub === 'function') {
+            try { unsub(); } catch (e) { console.warn("Unsubscribe error:", e); }
+        }
+    });
+    activeUnsubscribes = [];
+}
+
+/**
+ * 연도 전환 (이전 리스너 해제 -> 연도 변경 -> 새 연도 리스너 재구독)
+ */
+export function switchYear(newYear, onUpdateCallback) {
+    cleanupAllListeners();
+    appState.setYear(newYear);
+
+    const unsubConfig = setupConfigListener(() => { if (onUpdateCallback) onUpdateCallback(); });
+    const unsubScores = setupRealtimeScoresListener(() => { if (onUpdateCallback) onUpdateCallback(); });
+    const unsubVotes = setupExcellentPresenterListener(() => { if (onUpdateCallback) onUpdateCallback(); });
+    const unsubSubs = setupAllSubmissionsListener(() => { if (onUpdateCallback) onUpdateCallback(); });
+
+    activeUnsubscribes.push(unsubConfig, unsubScores, unsubVotes, unsubSubs);
+
+    if (appState.loginId && appState.currentUserRole === 'evaluator') {
+        const unsubMySub = setupSubmissionListener(appState.loginId, () => { if (onUpdateCallback) onUpdateCallback(); });
+        activeUnsubscribes.push(unsubMySub);
+    }
+
+    if (onUpdateCallback) onUpdateCallback();
+}
+
+/**
  * 대회 동적 설정(발표자, 배점기준, 메타데이터) 실시간 리스너
  */
 export function setupConfigListener(callback) {
     const db = getDb();
-    const configDocRef = doc(db, `/artifacts/${appId}/public/data/config`, 'default-config');
+    const configDocRef = doc(db, `/artifacts/${getTargetAppId()}/public/data/config`, 'default-config');
 
-    return onSnapshot(configDocRef, (docSnap) => {
+    const unsub = onSnapshot(configDocRef, (docSnap) => {
         if (docSnap.exists()) {
             const remoteConfig = docSnap.data();
             appState.applyRemoteConfig(remoteConfig);
             if (callback) callback(remoteConfig);
+        } else {
+            if (callback) callback(null);
         }
     }, (error) => {
         console.error("Config listener error:", error);
     });
+
+    activeUnsubscribes.push(unsub);
+    return unsub;
 }
 
 /**
@@ -43,7 +90,7 @@ export function setupConfigListener(callback) {
  */
 export async function saveRemoteConfig(configData) {
     const db = getDb();
-    const configDocRef = doc(db, `/artifacts/${appId}/public/data/config`, 'default-config');
+    const configDocRef = doc(db, `/artifacts/${getTargetAppId()}/public/data/config`, 'default-config');
     await setDoc(configDocRef, {
         ...configData,
         updatedAt: serverTimestamp()
@@ -61,7 +108,7 @@ export async function changeSystemPassword(role, newPassword) {
     }
     const db = getDb();
     const newHash = await hashPassword(newPassword.trim());
-    const authDocRef = doc(db, `/artifacts/${appId}/public/data/auth_config`, 'credentials');
+    const authDocRef = doc(db, `/artifacts/${getTargetAppId()}/public/data/auth_config`, 'credentials');
 
     const updateData = {};
     if (role === 'admin') {
@@ -79,9 +126,9 @@ export async function changeSystemPassword(role, newPassword) {
  */
 export function setupRealtimeScoresListener(callback) {
     const db = getDb();
-    const scoresCollectionRef = collection(db, `/artifacts/${appId}/public/data/scores`);
+    const scoresCollectionRef = collection(db, `/artifacts/${getTargetAppId()}/public/data/scores`);
 
-    return onSnapshot(scoresCollectionRef, (snapshot) => {
+    const unsub = onSnapshot(scoresCollectionRef, (snapshot) => {
         snapshot.docChanges().forEach((change) => {
             const presenterId = change.doc.id;
             const data = change.doc.data();
@@ -97,6 +144,9 @@ export function setupRealtimeScoresListener(callback) {
     }, (error) => {
         console.error("Realtime scores listener error:", error);
     });
+
+    activeUnsubscribes.push(unsub);
+    return unsub;
 }
 
 /**
@@ -104,9 +154,9 @@ export function setupRealtimeScoresListener(callback) {
  */
 export function setupSubmissionListener(evaluatorId, callback) {
     const db = getDb();
-    const docRef = doc(db, `/artifacts/${appId}/public/data/submissions`, evaluatorId);
+    const docRef = doc(db, `/artifacts/${getTargetAppId()}/public/data/submissions`, evaluatorId);
 
-    return onSnapshot(docRef, (docSnap) => {
+    const unsub = onSnapshot(docRef, (docSnap) => {
         if (docSnap.exists()) {
             appState.setSubmissions(docSnap.data());
         } else {
@@ -116,6 +166,9 @@ export function setupSubmissionListener(evaluatorId, callback) {
     }, (error) => {
         console.error("Submission listener error:", error);
     });
+
+    activeUnsubscribes.push(unsub);
+    return unsub;
 }
 
 /**
@@ -123,9 +176,9 @@ export function setupSubmissionListener(evaluatorId, callback) {
  */
 export function setupAllSubmissionsListener(callback) {
     const db = getDb();
-    const colRef = collection(db, `/artifacts/${appId}/public/data/submissions`);
+    const colRef = collection(db, `/artifacts/${getTargetAppId()}/public/data/submissions`);
 
-    return onSnapshot(colRef, (snapshot) => {
+    const unsub = onSnapshot(colRef, (snapshot) => {
         const allSubs = {};
         snapshot.forEach(docSnap => {
             allSubs[docSnap.id] = docSnap.data();
@@ -135,6 +188,9 @@ export function setupAllSubmissionsListener(callback) {
     }, (error) => {
         console.error("All submissions listener error:", error);
     });
+
+    activeUnsubscribes.push(unsub);
+    return unsub;
 }
 
 /**
@@ -142,9 +198,9 @@ export function setupAllSubmissionsListener(callback) {
  */
 export function setupExcellentPresenterListener(callback) {
     const db = getDb();
-    const selectionsCollectionRef = collection(db, `/artifacts/${appId}/public/data/excellent_presenter_selections`);
+    const selectionsCollectionRef = collection(db, `/artifacts/${getTargetAppId()}/public/data/excellent_presenter_selections`);
 
-    return onSnapshot(selectionsCollectionRef, (snapshot) => {
+    const unsub = onSnapshot(selectionsCollectionRef, (snapshot) => {
         const selections = {};
         snapshot.forEach(docSnap => {
             selections[docSnap.id] = docSnap.data();
@@ -154,6 +210,9 @@ export function setupExcellentPresenterListener(callback) {
     }, (error) => {
         console.error("Excellent presenter listener error:", error);
     });
+
+    activeUnsubscribes.push(unsub);
+    return unsub;
 }
 
 /**
@@ -164,7 +223,7 @@ export async function updateScore(presenterId, criterionKey, value) {
 
     appState.setSaveStatus('SAVING');
     const db = getDb();
-    const docRef = doc(db, `/artifacts/${appId}/public/data/scores`, presenterId);
+    const docRef = doc(db, `/artifacts/${getTargetAppId()}/public/data/scores`, presenterId);
 
     try {
         const scoreVal = value === '' ? null : parseInt(value, 10);
@@ -197,7 +256,7 @@ export async function updateComment(presenterId, text) {
 
     appState.setSaveStatus('SAVING');
     const db = getDb();
-    const docRef = doc(db, `/artifacts/${appId}/public/data/scores`, presenterId);
+    const docRef = doc(db, `/artifacts/${getTargetAppId()}/public/data/scores`, presenterId);
 
     try {
         const payload = {
@@ -228,7 +287,7 @@ export async function submitCategory(categoryKey) {
     if (!appState.loginId) return;
 
     const db = getDb();
-    const docRef = doc(db, `/artifacts/${appId}/public/data/submissions`, appState.loginId);
+    const docRef = doc(db, `/artifacts/${getTargetAppId()}/public/data/submissions`, appState.loginId);
 
     const payload = {
         evaluatorName: appState.loginId,
@@ -246,7 +305,7 @@ export async function saveExcellentSelection(category, presenterName) {
     if (!appState.loginId) return;
 
     const db = getDb();
-    const docRef = doc(db, `/artifacts/${appId}/public/data/excellent_presenter_selections`, appState.loginId);
+    const docRef = doc(db, `/artifacts/${getTargetAppId()}/public/data/excellent_presenter_selections`, appState.loginId);
 
     const payload = {
         evaluatorName: appState.loginId,
@@ -265,7 +324,7 @@ export async function submitExcellentSelections() {
     if (!appState.loginId) return;
 
     const db = getDb();
-    const docRef = doc(db, `/artifacts/${appId}/public/data/excellent_presenter_selections`, appState.loginId);
+    const docRef = doc(db, `/artifacts/${getTargetAppId()}/public/data/excellent_presenter_selections`, appState.loginId);
 
     await updateDoc(docRef, {
         submitted: true,
@@ -278,7 +337,7 @@ export async function submitExcellentSelections() {
  */
 export async function resetVoterSessions() {
     const db = getDb();
-    const sessionCollectionRef = collection(db, `/artifacts/${appId}/public/data/voter_sessions`);
+    const sessionCollectionRef = collection(db, `/artifacts/${getTargetAppId()}/public/data/voter_sessions`);
     const snapshot = await getDocs(sessionCollectionRef);
     const batch = writeBatch(db);
 
@@ -316,7 +375,7 @@ export async function runSimulation() {
         const criteria = appState.evaluationCriteria[presenterCat] || [];
 
         for (const presenter of catPresenters) {
-            const docRef = doc(db, `/artifacts/${appId}/public/data/scores`, presenter.id);
+            const docRef = doc(db, `/artifacts/${getTargetAppId()}/public/data/scores`, presenter.id);
             const existingScores = appState.allScores[presenter.id]?.scores || {};
             const simScores = { ...existingScores };
 
@@ -340,7 +399,7 @@ export async function runSimulation() {
 
     // 2. 가상 평가자 부문별 제출 상태 생성
     for (const evalId of simulatedEvaluators) {
-        const subDocRef = doc(db, `/artifacts/${appId}/public/data/submissions`, evalId);
+        const subDocRef = doc(db, `/artifacts/${getTargetAppId()}/public/data/submissions`, evalId);
         const subData = { 
             evaluatorName: evalId,
             updatedAt: serverTimestamp()
@@ -355,7 +414,7 @@ export async function runSimulation() {
     const totalVoters = appState.eventInfo?.TOTAL_VOTERS || 200;
     for (let i = 0; i < totalVoters; i++) {
         const voterId = `sim-voter-${(i + 1).toString().padStart(4, '0')}`;
-        const docRef = doc(db, `/artifacts/${appId}/public/data/excellent_presenter_selections`, voterId);
+        const docRef = doc(db, `/artifacts/${getTargetAppId()}/public/data/excellent_presenter_selections`, voterId);
         const selections = {};
 
         for (const category in appState.presenters) {
@@ -400,7 +459,7 @@ export async function resetSimulationData() {
         }
     }
 
-    const scoresCollectionRef = collection(db, `/artifacts/${appId}/public/data/scores`);
+    const scoresCollectionRef = collection(db, `/artifacts/${getTargetAppId()}/public/data/scores`);
     const scoresSnapshot = await getDocs(scoresCollectionRef);
     
     scoresSnapshot.forEach(docSnap => {
@@ -423,7 +482,7 @@ export async function resetSimulationData() {
         }
     });
 
-    const selectionsCollectionRef = collection(db, `/artifacts/${appId}/public/data/excellent_presenter_selections`);
+    const selectionsCollectionRef = collection(db, `/artifacts/${getTargetAppId()}/public/data/excellent_presenter_selections`);
     const selectionsSnapshot = await getDocs(selectionsCollectionRef);
     
     selectionsSnapshot.forEach(docSnap => {
@@ -432,7 +491,7 @@ export async function resetSimulationData() {
         }
     });
 
-    const submissionsCollectionRef = collection(db, `/artifacts/${appId}/public/data/submissions`);
+    const submissionsCollectionRef = collection(db, `/artifacts/${getTargetAppId()}/public/data/submissions`);
     const submissionsSnapshot = await getDocs(submissionsCollectionRef);
     submissionsSnapshot.forEach(docSnap => {
         if (docSnap.id.startsWith('sim-evaluator-')) {
@@ -468,7 +527,7 @@ export async function resetAllData() {
     }
 
     for (const collectionName of collectionsToDelete) {
-        const collectionRef = collection(db, `/artifacts/${appId}/public/data/${collectionName}`);
+        const collectionRef = collection(db, `/artifacts/${getTargetAppId()}/public/data/${collectionName}`);
         const snapshot = await getDocs(collectionRef);
         snapshot.forEach(d => {
             addOp(b => b.delete(d.ref));

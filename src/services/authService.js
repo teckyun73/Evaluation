@@ -3,7 +3,7 @@
  * SHA-256 단방향 암호화 해시 및 성명/이메일 기반 안전 사용자 인증 모듈
  */
 
-import { getDb, doc, getDoc, setDoc, deleteDoc, serverTimestamp, initializeFirebaseOnce, appId } from '../config/firebase.js';
+import { getDb, doc, getDoc, setDoc, deleteDoc, serverTimestamp, initializeFirebaseOnce, getAppId } from '../config/firebase.js';
 import { appState } from '../state/appState.js';
 import { verifyPassword, DEFAULT_ADMIN_HASH, DEFAULT_EVALUATOR_HASH } from '../utils/crypto.js';
 
@@ -11,14 +11,23 @@ import { verifyPassword, DEFAULT_ADMIN_HASH, DEFAULT_EVALUATOR_HASH } from '../u
 const SESSION_EXPIRATION_MS = 30 * 60 * 1000;
 
 /**
- * Firestore에서 원격 저장된 암호화 자격증명 해시 조회
+ * Firestore에서 원격 저장된 암호화 자격증명 해시 조회 (연도별 및 연속성 지원)
  */
 async function getRemoteCredentials(db) {
+    const targetAppId = getAppId(appState.currentYear);
     try {
-        const authDocRef = doc(db, `/artifacts/${appId}/public/data/auth_config`, 'credentials');
+        const authDocRef = doc(db, `/artifacts/${targetAppId}/public/data/auth_config`, 'credentials');
         const snap = await getDoc(authDocRef);
         if (snap.exists()) {
             return snap.data();
+        }
+        // 2026년 신규 네임스페이스에 아직 변경 기록이 없으면 2025년 설정 폴백 조회
+        if (targetAppId !== 'default-innovation-eval-app') {
+            const fallbackRef = doc(db, `/artifacts/default-innovation-eval-app/public/data/auth_config`, 'credentials');
+            const fallbackSnap = await getDoc(fallbackRef);
+            if (fallbackSnap.exists()) {
+                return fallbackSnap.data();
+            }
         }
     } catch (e) {
         console.warn("Could not fetch remote credentials, using secure defaults:", e);
@@ -67,8 +76,9 @@ export async function login(role, id, password) {
         }
 
         // 이메일 기반 고유 세션 ID 생성
+        const targetAppId = getAppId(appState.currentYear);
         const safeSessionKey = voterEmail.replace(/[^a-zA-Z0-9_-]/g, '_');
-        const sessionDocRef = doc(db, `/artifacts/${appId}/public/data/voter_sessions`, safeSessionKey);
+        const sessionDocRef = doc(db, `/artifacts/${targetAppId}/public/data/voter_sessions`, safeSessionKey);
         const docSnap = await getDoc(sessionDocRef);
 
         if (docSnap.exists()) {
@@ -121,8 +131,9 @@ export async function login(role, id, password) {
 export async function logout() {
     const db = getDb();
     if (db && appState.currentUserRole === 'voter' && appState.voterEmail) {
+        const targetAppId = getAppId(appState.currentYear);
         const safeSessionKey = appState.voterEmail.replace(/[^a-zA-Z0-9_-]/g, '_');
-        const sessionDocRef = doc(db, `/artifacts/${appId}/public/data/voter_sessions`, safeSessionKey);
+        const sessionDocRef = doc(db, `/artifacts/${targetAppId}/public/data/voter_sessions`, safeSessionKey);
         try {
             await deleteDoc(sessionDocRef);
         } catch (error) {

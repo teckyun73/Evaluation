@@ -36,6 +36,7 @@ async function initCeremony() {
             if (parentState.evaluationCriteria) appState.evaluationCriteria = JSON.parse(JSON.stringify(parentState.evaluationCriteria));
             if (parentState.allScores) appState.allScores = JSON.parse(JSON.stringify(parentState.allScores));
             if (parentState.excellentPresenterSelections) appState.excellentPresenterSelections = JSON.parse(JSON.stringify(parentState.excellentPresenterSelections));
+            if (parentState.currentYear) appState.currentYear = parentState.currentYear;
             if (parentState.selectedPresentationCategory) appState.selectedPresentationCategory = parentState.selectedPresentationCategory;
         }
     } catch (e) {
@@ -86,6 +87,12 @@ async function initCeremony() {
             } else if (action === 'SET_CATEGORY') {
                 if (payload && payload.category) {
                     appState.setPresentationCategory(payload.category);
+                    handleResetCeremony(true);
+                    renderStandaloneCeremony();
+                }
+            } else if (action === 'SET_YEAR') {
+                if (payload && payload.year) {
+                    appState.setYear(payload.year);
                     handleResetCeremony(true);
                     renderStandaloneCeremony();
                 }

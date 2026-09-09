@@ -18,6 +18,7 @@ import {
     setupSubmissionListener, 
     setupAllSubmissionsListener,
     setupExcellentPresenterListener, 
+    switchYear,
     updateScore, 
     updateComment,
     submitCategory as firestoreSubmitCategory,
@@ -142,6 +143,22 @@ export function render() {
     const tabContent = document.getElementById('tab-content');
     if (!tabContent) return;
 
+    // 1. 연도 선택 컨트롤러 값 동기화
+    const yearSelector = document.getElementById('year-selector');
+    if (yearSelector && yearSelector.value !== String(appState.currentYear)) {
+        yearSelector.value = String(appState.currentYear);
+    }
+
+    // 2. 2025년 과거 아카이브 알림 배너 제어
+    const archiveBanner = document.getElementById('archive-banner');
+    if (archiveBanner) {
+        if (appState.isArchiveMode()) {
+            archiveBanner.classList.remove('hidden');
+        } else {
+            archiveBanner.classList.add('hidden');
+        }
+    }
+
     updateUIVisibility();
 
     switch (appState.activeTab) {
@@ -179,6 +196,28 @@ export function render() {
             tabContent.innerHTML = renderEvaluationTable(appState.activeTab);
             break;
     }
+
+    // 3. 과거 아카이브(2025년) 모드일 경우 평가표 입력/제출 차단 (안전한 Read-only 모드)
+    if (appState.isArchiveMode()) {
+        const scoreInputs = tabContent.querySelectorAll('.score-input');
+        scoreInputs.forEach(input => {
+            input.disabled = true;
+            input.classList.add('bg-slate-100', 'cursor-not-allowed');
+            input.title = "과거 아카이브 모드에서는 점수를 수정할 수 없습니다.";
+        });
+        const commentInputs = tabContent.querySelectorAll('.comment-input');
+        commentInputs.forEach(input => {
+            input.disabled = true;
+            input.classList.add('bg-slate-100', 'cursor-not-allowed');
+            input.title = "과거 아카이브 모드에서는 심사평을 수정할 수 없습니다.";
+        });
+        const submitBtns = tabContent.querySelectorAll('.submit-category-btn, #submit-excellent-btn');
+        submitBtns.forEach(btn => {
+            btn.disabled = true;
+            btn.classList.add('opacity-50', 'cursor-not-allowed');
+            btn.title = "과거 아카이브 모드에서는 제출할 수 없습니다.";
+        });
+    }
 }
 
 /**
@@ -186,6 +225,11 @@ export function render() {
  */
 async function handleSubmitCategory(categoryKey) {
     if (!appState.loginId) return;
+
+    if (appState.isArchiveMode()) {
+        showMessage("과거 아카이브(2025년) 모드에서는 점수를 제출할 수 없습니다.");
+        return;
+    }
 
     let allScoresFilled = true;
     const categoryPresenters = appState.presenters[categoryKey] || [];
@@ -256,13 +300,8 @@ async function onLoginSubmit() {
             }
         });
 
-        // 원격 동적 설정 구독
-        setupConfigListener(() => {
-            render();
-        });
-
-        // 실시간 리스너 구독
-        setupRealtimeScoresListener(() => {
+        // 실시간 Firestore 리스너 일괄 연동 함수
+        function onFirestoreUpdate() {
             const isAggregateTab = [
                 'results', 'detailed_results', 'final_results', 
                 'excellent_presenters', 'voter_detailed_results', 
@@ -276,32 +315,15 @@ async function onLoginSubmit() {
             } else {
                 renderColumnTotals(appState.activeTab);
             }
-        });
 
-        if (appState.currentUserRole === 'evaluator') {
-            setupSubmissionListener(appState.loginId, () => render());
-        }
-
-        if (appState.currentUserRole === 'admin') {
-            setupAllSubmissionsListener(() => {
-                const adminDashboardSlot = document.getElementById('admin-dashboard-slot');
-                if (adminDashboardSlot && adminDashboardSlot.style.display !== 'none') {
-                    adminDashboardSlot.innerHTML = renderAdminDashboard();
-                }
-            });
-        }
-
-        setupExcellentPresenterListener(() => {
-            if (appState.activeTab === 'award_ceremony') {
-                updateCeremonyCards();
-            } else {
-                render();
-            }
             const adminDashboardSlot = document.getElementById('admin-dashboard-slot');
             if (adminDashboardSlot && adminDashboardSlot.style.display !== 'none') {
                 adminDashboardSlot.innerHTML = renderAdminDashboard();
             }
-        });
+        }
+
+        // 현재 선택된 연도(기본: 2026)의 Firestore 실시간 리스너 구독
+        switchYear(appState.currentYear, onFirestoreUpdate);
 
         render();
     } catch (error) {
@@ -409,9 +431,36 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // 대회 연도 선택 컨트롤러 (2026년 진행 / 2025년 아카이브)
+    const yearSelector = document.getElementById('year-selector');
+    if (yearSelector) {
+        yearSelector.addEventListener('change', (e) => {
+            const selectedYear = parseInt(e.target.value, 10);
+            broadcastCeremonyAction('SET_YEAR', { year: selectedYear });
+            switchYear(selectedYear, () => {
+                render();
+            });
+        });
+    }
+
+    const returnTo2026Btn = document.getElementById('return-to-2026-btn');
+    if (returnTo2026Btn) {
+        returnTo2026Btn.addEventListener('click', () => {
+            if (yearSelector) yearSelector.value = '2026';
+            broadcastCeremonyAction('SET_YEAR', { year: 2026 });
+            switchYear(2026, () => {
+                render();
+            });
+        });
+    }
+
     const simulationBtn = document.getElementById('simulationBtn');
     if (simulationBtn) {
         simulationBtn.addEventListener('click', async () => {
+            if (appState.isArchiveMode()) {
+                showMessage("과거 아카이브(2025년) 모드에서는 시뮬레이션을 실행할 수 없습니다. 2026년 대회 모드로 전환해 주세요.");
+                return;
+            }
             simulationBtn.disabled = true;
             simulationBtn.textContent = '시뮬레이션 진행 중...';
             try {
@@ -473,6 +522,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const resetSimBtn = document.getElementById('resetSimBtn');
     if (resetSimBtn) {
         resetSimBtn.addEventListener('click', () => {
+            if (appState.isArchiveMode()) {
+                showMessage("과거 아카이브(2025년) 모드에서는 시뮬레이션 데이터를 초기화할 수 없습니다.");
+                return;
+            }
             showMessage('모든 시뮬레이션 데이터를 초기화하시겠습니까? 이 작업은 되돌릴 수 없습니다.', true, async () => {
                 resetSimBtn.disabled = true;
                 resetSimBtn.textContent = '초기화 중...';
@@ -494,6 +547,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const fullResetBtn = document.getElementById('fullResetBtn');
     if (fullResetBtn) {
         fullResetBtn.addEventListener('click', () => {
+            if (appState.isArchiveMode()) {
+                showMessage("과거 아카이브(2025년) 모드에서는 데이터를 초기화할 수 없습니다. 과거 기록은 영구 보존됩니다.");
+                return;
+            }
             showMessage('모든 평가 및 투표 데이터를 영구적으로 삭제하시겠습니까? 삭제 전 데이터가 CSV 파일로 자동 저장됩니다.', true, async () => {
                 exportToCSV(appState.allScores, appState.excellentPresenterSelections);
                 fullResetBtn.disabled = true;
@@ -555,6 +612,10 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             
             if (e.target.id === 'excellent-presenter-submit-btn') {
+                if (appState.isArchiveMode()) {
+                    showMessage("과거 아카이브(2025년) 모드에서는 투표를 제출할 수 없습니다.");
+                    return;
+                }
                 showMessage('우수 발표자 선정을 최종 제출하시겠습니까? 제출 후에는 수정할 수 없습니다.', true, async () => {
                     try {
                         await submitExcellentSelections();
@@ -566,6 +627,11 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             if (e.target.classList.contains('excellent-presenter-checkbox')) {
+                if (appState.isArchiveMode()) {
+                    e.preventDefault();
+                    showMessage("과거 아카이브(2025년) 모드에서는 투표를 변경할 수 없습니다.");
+                    return;
+                }
                 const clickedCheckbox = e.target;
                 const category = clickedCheckbox.dataset.category;
                 const presenterName = clickedCheckbox.dataset.presenterName;
@@ -714,6 +780,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // 입력 이벤트 (점수 및 심사평 코멘트 입력)
         tabContent.addEventListener('input', (e) => {
+            if (appState.isArchiveMode()) {
+                e.preventDefault();
+                return;
+            }
+
             if (e.target.classList.contains('score-input')) {
                 const { id, key } = e.target.dataset;
                 const value = e.target.value;

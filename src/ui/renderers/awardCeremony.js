@@ -225,7 +225,7 @@ export function renderAwardCeremony(isStandalone = false) {
                     </span>
                 </div>
                 <h1 class="text-2xl md:text-3xl lg:text-4xl font-black text-slate-900 tracking-tight leading-tight">
-                    2026 경영혁신 경진대회 시상식 
+                    ${appState.currentYear} 경영혁신 경진대회 시상식 
                     <span class="inline-block text-amber-600 font-black ml-2 drop-shadow-xs">(${categoryName} 부문)</span>
                 </h1>
                 <p class="text-xs md:text-sm lg:text-base text-slate-500 font-medium mt-1">
@@ -240,7 +240,7 @@ export function renderAwardCeremony(isStandalone = false) {
                 <div class="min-w-0 flex-1">
                     <span class="inline-block text-[11px] font-extrabold tracking-wider text-amber-700 uppercase bg-amber-100/90 border border-amber-300/60 px-2.5 py-0.5 rounded-md shadow-xs">AWARD CEREMONY</span>
                     <h2 class="text-xl md:text-2xl font-black text-slate-900 mt-1 whitespace-nowrap overflow-hidden text-ellipsis tracking-tight">
-                        2026 경영혁신 경진대회 시상식
+                        ${appState.currentYear} 경영혁신 경진대회 시상식
                     </h2>
                     <p class="text-xs md:text-sm text-slate-500 mt-0.5 whitespace-nowrap">영예의 수상자를 발표합니다.</p>
                 </div>

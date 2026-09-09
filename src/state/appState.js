@@ -18,6 +18,7 @@ export const appState = {
     saveStatus: 'idle', // 'idle' | 'saving' | 'saved' | 'error'
     isOnline: navigator.onLine,
     voterEmail: null,
+    currentYear: 2026, // 기본값: 2026년 대회
     
     // 동적 대회 설정 데이터 (Firestore 연동)
     presenters: JSON.parse(JSON.stringify(PRESENTERS)),
@@ -25,6 +26,24 @@ export const appState = {
     eventInfo: JSON.parse(JSON.stringify(EVENT_INFO)),
 
     listeners: new Set(),
+
+    isArchiveMode() {
+        return this.currentYear === 2025;
+    },
+
+    setYear(year) {
+        const parsedYear = parseInt(year, 10) || 2026;
+        if (this.currentYear !== parsedYear) {
+            this.currentYear = parsedYear;
+            // 연도 전환 시 인메모리 데이터 초기화
+            this.allScores = {};
+            this.submissionStatus = {};
+            this.allSubmissions = {};
+            this.excellentPresenterSelections = {};
+            this.finalResultsData = null;
+            this.notify('YEAR_CHANGED', { year: parsedYear });
+        }
+    },
 
     subscribe(listener) {
         this.listeners.add(listener);

@@ -35,7 +35,18 @@ const firebaseConfig = typeof window.__firebase_config !== 'undefined'
     ? JSON.parse(window.__firebase_config) 
     : productionConfig;
 
-export const appId = typeof window.__app_id !== 'undefined' ? window.__app_id : 'default-innovation-eval-app';
+export function getAppId(year) {
+    if (typeof window !== 'undefined' && window.__app_id) {
+        return window.__app_id;
+    }
+    const targetYear = parseInt(year, 10) || 2026;
+    if (targetYear === 2025) {
+        return 'default-innovation-eval-app'; // 2025년 기존 실데이터 보존 경로
+    }
+    return `eval-${targetYear}`; // 2026년 이후 신규 독립 네임스페이스 (예: eval-2026)
+}
+
+export const appId = 'default-innovation-eval-app'; // 하위 호환성 유지용
 
 let db = null;
 let auth = null;
