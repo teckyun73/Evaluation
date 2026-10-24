@@ -25,13 +25,17 @@ body {
 }
 
 .toolbar-btn {
-    display: inline-flex !important;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 6px;
     height: 38px;
     line-height: 1;
     vertical-align: middle;
+}
+
+.toolbar-btn.hidden {
+    display: none !important;
 }
 
 /* ==========================================================================

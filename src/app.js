@@ -74,18 +74,28 @@ export function updateUIVisibility() {
     const adminDashboardSlot = document.getElementById('admin-dashboard-slot');
 
     [simBtn, exportBtn, backupJsonBtn, restoreJsonBtn, printBtn, saveLogoutBtn, resetSimBtn, fullResetBtn].forEach(btn => {
-        if (btn) btn.style.display = 'none';
+        if (btn) {
+            btn.classList.add('hidden');
+            btn.style.display = 'none';
+        }
     });
 
+    const showBtn = (btn) => {
+        if (btn) {
+            btn.classList.remove('hidden');
+            btn.style.display = 'inline-flex';
+        }
+    };
+
     if (appState.currentUserRole === 'admin') {
-        if (simBtn) simBtn.style.display = 'inline-flex';
-        if (exportBtn) exportBtn.style.display = 'inline-flex';
-        if (backupJsonBtn) backupJsonBtn.style.display = 'inline-flex';
-        if (restoreJsonBtn) restoreJsonBtn.style.display = 'inline-flex';
-        if (printBtn) printBtn.style.display = 'inline-flex';
-        if (resetSimBtn) resetSimBtn.style.display = 'inline-flex';
-        if (fullResetBtn) fullResetBtn.style.display = 'inline-flex';
-        if (saveLogoutBtn) saveLogoutBtn.style.display = 'inline-flex';
+        showBtn(simBtn);
+        showBtn(exportBtn);
+        showBtn(backupJsonBtn);
+        showBtn(restoreJsonBtn);
+        showBtn(printBtn);
+        showBtn(resetSimBtn);
+        showBtn(fullResetBtn);
+        showBtn(saveLogoutBtn);
         allTabs.forEach(tab => tab.style.display = 'inline-flex');
 
         if (adminDashboardSlot) {
@@ -93,7 +103,7 @@ export function updateUIVisibility() {
             adminDashboardSlot.style.display = 'block';
         }
     } else if (appState.currentUserRole === 'voter') {
-        if (saveLogoutBtn) saveLogoutBtn.style.display = 'inline-flex';
+        showBtn(saveLogoutBtn);
         if (adminDashboardSlot) adminDashboardSlot.style.display = 'none';
         
         const voterVisibleTabs = ['excellent_presenters', 'live_vote_status'];
@@ -109,7 +119,7 @@ export function updateUIVisibility() {
             if (firstVoterTab) firstVoterTab.click();
         }
     } else if (appState.currentUserRole === 'evaluator') {
-        if (saveLogoutBtn) saveLogoutBtn.style.display = 'inline-flex';
+        showBtn(saveLogoutBtn);
         if (adminDashboardSlot) adminDashboardSlot.style.display = 'none';
         
         const evaluatorHiddenTabs = [
