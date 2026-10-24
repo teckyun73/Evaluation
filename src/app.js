@@ -45,18 +45,62 @@ import { renderFinalResults } from './ui/renderers/finalResults.js';
 import { renderFinalResultsCharts, downloadChartAsPNG } from './ui/chartManager.js';
 import { renderExcellentPresenters } from './ui/renderers/excellentPresenters.js';
 
-// 디바운스된 점수 및 심사평 업데이트 함수
-const debouncedUpdateScore = debounce((id, key, value) => {
-    updateScore(id, key, value).catch(err => {
-        console.error("Score update failed:", err);
-    });
-}, 400);
+// 셀별 독립 디바운스 타이머 및 진행 중인 저장 작업 추적 (빠른 연속 입력 시 누락 방지 + 로그아웃 시 즉시 플러시)
+const pendingScoreTimers = new Map();
+const pendingCommentTimers = new Map();
+const activeSavePromises = new Set();
 
-const debouncedUpdateComment = debounce((presenterId, text) => {
-    updateComment(presenterId, text).catch(err => {
-        console.error("Comment update failed:", err);
-    });
-}, 500);
+function trackSavePromise(promise) {
+    activeSavePromises.add(promise);
+    promise.finally(() => activeSavePromises.delete(promise));
+    return promise;
+}
+
+function debouncedUpdateScore(id, key, value) {
+    const mapKey = `${id}:::${key}`;
+    if (pendingScoreTimers.has(mapKey)) {
+        clearTimeout(pendingScoreTimers.get(mapKey).timerId);
+    }
+    const task = () => {
+        pendingScoreTimers.delete(mapKey);
+        const p = updateScore(id, key, value).catch(err => {
+            console.error("Score update failed:", err);
+        });
+        return trackSavePromise(p);
+    };
+    const timerId = setTimeout(task, 350);
+    pendingScoreTimers.set(mapKey, { timerId, flush: task });
+}
+
+function debouncedUpdateComment(presenterId, text) {
+    if (pendingCommentTimers.has(presenterId)) {
+        clearTimeout(pendingCommentTimers.get(presenterId).timerId);
+    }
+    const task = () => {
+        pendingCommentTimers.delete(presenterId);
+        const p = updateComment(presenterId, text).catch(err => {
+            console.error("Comment update failed:", err);
+        });
+        return trackSavePromise(p);
+    };
+    const timerId = setTimeout(task, 450);
+    pendingCommentTimers.set(presenterId, { timerId, flush: task });
+}
+
+async function flushPendingSaves() {
+    const flushes = [];
+    for (const [, entry] of pendingScoreTimers.entries()) {
+        clearTimeout(entry.timerId);
+        flushes.push(entry.flush());
+    }
+    for (const [, entry] of pendingCommentTimers.entries()) {
+        clearTimeout(entry.timerId);
+        flushes.push(entry.flush());
+    }
+    if (flushes.length > 0 || activeSavePromises.size > 0) {
+        await Promise.allSettled([...flushes, ...activeSavePromises]);
+    }
+}
 
 /**
  * 역할에 따른 UI 탭 및 관리자 버튼 가시성 제어
@@ -215,13 +259,13 @@ export function render() {
             input.classList.add('bg-slate-100', 'cursor-not-allowed');
             input.title = "과거 아카이브 모드에서는 점수를 수정할 수 없습니다.";
         });
-        const commentInputs = tabContent.querySelectorAll('.comment-input');
+        const commentInputs = tabContent.querySelectorAll('.comment-input, .evaluator-comment-input');
         commentInputs.forEach(input => {
             input.disabled = true;
             input.classList.add('bg-slate-100', 'cursor-not-allowed');
             input.title = "과거 아카이브 모드에서는 심사평을 수정할 수 없습니다.";
         });
-        const submitBtns = tabContent.querySelectorAll('.submit-category-btn, #submit-excellent-btn');
+        const submitBtns = tabContent.querySelectorAll('.submit-btn, .submit-category-btn, #submit-excellent-btn, #excellent-presenter-submit-btn');
         submitBtns.forEach(btn => {
             btn.disabled = true;
             btn.classList.add('opacity-50', 'cursor-not-allowed');
@@ -263,6 +307,7 @@ async function handleSubmitCategory(categoryKey) {
 
     showMessage('최종 제출하시겠습니까? 제출 후에는 수정할 수 없습니다.', true, async () => {
         try {
+            await flushPendingSaves();
             await firestoreSubmitCategory(categoryKey);
             showMessage(`'${CATEGORY_DISPLAY_NAMES[categoryKey]}' 부문 평가를 최종 제출했습니다. 이제 수정할 수 없습니다.`);
         } catch (error) {
@@ -526,7 +571,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const saveLogoutBtn = document.getElementById('save-logout-btn');
     if (saveLogoutBtn) {
-        saveLogoutBtn.addEventListener('click', logout);
+        saveLogoutBtn.addEventListener('click', async () => {
+            saveLogoutBtn.disabled = true;
+            saveLogoutBtn.textContent = '저장 및 로그아웃 중...';
+            try {
+                await flushPendingSaves();
+            } catch (e) {
+                console.warn("Flush before logout error:", e);
+            }
+            await logout();
+        });
     }
 
     const resetSimBtn = document.getElementById('resetSimBtn');

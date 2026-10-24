@@ -7,13 +7,14 @@ import { CATEGORY_DISPLAY_NAMES, INTRO_TEXTS } from '../../config/constants.js';
 import { appState } from '../../state/appState.js';
 
 function getAutosaveBadgeHtml() {
-    if (appState.saveStatus === 'saving') {
+    const status = (appState.saveStatus || 'idle').toLowerCase();
+    if (status === 'saving') {
         return `<span class="autosave-badge autosave-saving"><span class="loader"></span> 저장 중...</span>`;
     }
-    if (appState.saveStatus === 'saved') {
+    if (status === 'saved') {
         return `<span class="autosave-badge autosave-saved"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> 모든 변경사항 저장됨</span>`;
     }
-    if (appState.saveStatus === 'error') {
+    if (status === 'error') {
         return `<span class="autosave-badge autosave-error"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg> 저장 실패 (다시 시도해주세요)</span>`;
     }
     return `<span class="autosave-badge text-slate-400 bg-slate-100 border border-slate-200">실시간 자동저장</span>`;
@@ -134,6 +135,32 @@ export function updateAutosaveBadge() {
 }
 
 export function renderColumnTotals(categoryKey) {
+    const tabContent = document.getElementById('tab-content');
+    if (tabContent && appState.loginId) {
+        // 포커스 중이지 않은 점수 입력칸에 Firestore 최신 로드값 동기화 (재로그인 시 즉시 복원)
+        const scoreInputs = tabContent.querySelectorAll('.score-input');
+        scoreInputs.forEach(input => {
+            if (document.activeElement === input) return;
+            const { id, key } = input.dataset;
+            const score = appState.allScores[id]?.scores?.[appState.loginId]?.[key];
+            const myScore = (score === null || score === undefined) ? '' : String(score);
+            if (input.value !== myScore) {
+                input.value = myScore;
+            }
+        });
+
+        // 포커스 중이지 않은 심사평 입력칸에 Firestore 최신 로드값 동기화
+        const commentInputs = tabContent.querySelectorAll('.evaluator-comment-input');
+        commentInputs.forEach(textarea => {
+            if (document.activeElement === textarea) return;
+            const presenterId = textarea.dataset.presenterId;
+            const comment = appState.allScores[presenterId]?.comments?.[appState.loginId] || '';
+            if (textarea.value !== comment) {
+                textarea.value = comment;
+            }
+        });
+    }
+
     const table = document.querySelector('#tab-content table');
     if (!table || !table.tfoot) return;
     
