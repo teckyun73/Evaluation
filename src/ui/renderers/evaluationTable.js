@@ -1,9 +1,9 @@
 /**
  * evaluationTable.js
- * 부문별(6S, 6시그마, R&D, AI) 평가표 렌더링, 자동저장 상태 피드백, 심사평 코멘트 및 점수 합계 표시 모듈
+ * 부문별(2026: 지원·기술 / 2025: 6S·6시그마·R&D·AI) 평가표 렌더링, 직무 범위 배지, 자동저장 피드백, 심사평 코멘트 및 점수 합계 표시 모듈
  */
 
-import { CATEGORY_DISPLAY_NAMES, INTRO_TEXTS } from '../../config/constants.js';
+import { CATEGORY_DISPLAY_NAMES, CATEGORY_METADATA, INTRO_TEXTS } from '../../config/constants.js';
 import { appState } from '../../state/appState.js';
 
 function getAutosaveBadgeHtml() {
@@ -24,47 +24,75 @@ export function renderEvaluationTable(categoryKey) {
     const isSubmitted = appState.submissionStatus[categoryKey] === true;
     const criteria = appState.evaluationCriteria[categoryKey] || [];
     const categoryPresenters = appState.presenters[categoryKey] || [];
-    
+    const meta = CATEGORY_METADATA[categoryKey] || {};
+    const totalMaxPoints = criteria.reduce((sum, c) => sum + (parseInt(c.max, 10) || 0), 0);
+    const isCompactCols = categoryPresenters.length >= 6;
+    const cellPadClass = isCompactCols ? 'px-3 py-3.5' : 'px-6 py-4';
+    const headPadClass = isCompactCols ? 'px-3 py-3.5 min-w-[104px]' : 'px-6 py-3.5';
+
+    const scopeBadgesHTML = meta.jobScope ? `
+        <div class="flex flex-wrap items-center gap-2 mt-1.5 mb-1.5">
+            <span class="inline-flex items-center text-xs font-semibold px-2.5 py-0.5 rounded-full bg-white text-sky-800 border border-sky-200 shadow-xs">
+                직무 범위: ${meta.jobScope}
+            </span>
+            <span class="inline-flex items-center text-xs font-semibold px-2.5 py-0.5 rounded-full bg-teal-50 text-teal-800 border border-teal-200">
+                평가 대상: 총 ${categoryPresenters.length}건
+            </span>
+        </div>
+    ` : '';
+
     let introHTML = `
-        <div class="p-4 mb-4 bg-sky-50 border border-sky-200 rounded-lg flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+        <div class="p-4 mb-4 bg-sky-50 border border-sky-200 rounded-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
             <div class="flex-grow">
-                <div class="flex items-center gap-3 mb-2 md:mb-1">
-                    <span class="font-bold text-slate-800">${CATEGORY_DISPLAY_NAMES[categoryKey] || categoryKey.toUpperCase()} 부문 평가</span>
+                <div class="flex flex-wrap items-center gap-2.5 mb-1">
+                    <span class="font-extrabold text-base md:text-lg text-slate-900">
+                        ${meta.icon ? `${meta.icon} ` : ''}${CATEGORY_DISPLAY_NAMES[categoryKey] || categoryKey.toUpperCase()} 부문 평가
+                    </span>
                     <div id="autosave-status-container">${getAutosaveBadgeHtml()}</div>
                 </div>
-                <p class="text-slate-700 text-sm">${INTRO_TEXTS[categoryKey] || ''}</p>
+                ${scopeBadgesHTML}
+                <p class="text-slate-700 text-xs md:text-sm leading-relaxed">${INTRO_TEXTS[categoryKey] || ''}</p>
             </div>
-            <button data-category="${categoryKey}" class="submit-btn w-full md:w-auto flex-shrink-0 bg-teal-600 text-white px-5 py-2.5 rounded-lg hover:bg-teal-700 transition focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 disabled:bg-slate-400 disabled:cursor-not-allowed font-medium text-sm shadow-sm" ${isSubmitted ? 'disabled' : ''}>
+            <button data-category="${categoryKey}" class="submit-btn w-full md:w-auto flex-shrink-0 bg-teal-600 text-white px-5 py-2.5 rounded-lg hover:bg-teal-700 transition focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 disabled:bg-slate-400 disabled:cursor-not-allowed font-semibold text-sm shadow-sm" ${isSubmitted ? 'disabled' : ''}>
                 ${isSubmitted ? '제출 완료' : '최종 제출'}
             </button>
         </div>
     `;
 
-    let tableHTML = `<div class="overflow-x-auto rounded-lg border border-slate-200"><table class="w-full text-sm text-left text-slate-500">`;
+    let tableHTML = `<div class="overflow-x-auto rounded-xl border border-slate-200 shadow-xs"><table class="w-full text-sm text-left text-slate-500">`;
     tableHTML += `<thead class="text-xs text-slate-700 uppercase bg-slate-100"><tr>`;
-    tableHTML += `<th scope="col" class="px-6 py-3.5 sticky-col bg-slate-100">평가항목</th>`;
-    tableHTML += `<th scope="col" class="px-4 py-3.5 text-center">배점</th>`;
-    categoryPresenters.forEach(p => { 
-        tableHTML += `<th scope="col" class="px-6 py-3.5 text-center">${p.name}</th>`; 
+    tableHTML += `<th scope="col" class="px-5 py-3.5 sticky-col bg-slate-100 min-w-[220px]">평가항목</th>`;
+    tableHTML += `<th scope="col" class="px-3 py-3.5 text-center whitespace-nowrap">배점</th>`;
+    categoryPresenters.forEach((p, idx) => {
+        tableHTML += `<th scope="col" class="${headPadClass} text-center font-bold text-slate-800"><div class="text-[11px] text-slate-400 font-semibold mb-0.5">#${idx + 1}</div><div class="whitespace-nowrap">${p.name}</div></th>`;
     });
     tableHTML += `</tr></thead>`;
     tableHTML += `<tbody>`;
 
     criteria.forEach(c => {
-        tableHTML += `<tr class="bg-white border-b hover:bg-slate-50/50 transition">`;
-        tableHTML += `<th scope="row" class="px-6 py-4 font-medium text-slate-900 whitespace-nowrap sticky-col bg-white">${c.name}</th>`;
-        tableHTML += `<td class="px-4 py-4 text-center font-semibold text-slate-600">${c.max}</td>`;
-        
+        const isAiCriterion = c.key && c.key.includes('ai_utilization');
+        tableHTML += `<tr class="bg-white border-b hover:bg-slate-50/70 transition ${isAiCriterion ? 'bg-indigo-50/20' : ''}">`;
+        tableHTML += `
+            <th scope="row" class="px-5 py-3.5 font-semibold text-slate-900 sticky-col ${isAiCriterion ? 'bg-indigo-50/40' : 'bg-white'}">
+                <div class="flex items-center gap-1.5 whitespace-nowrap">
+                    <span>${c.name}</span>
+                    ${isAiCriterion ? `<span class="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700 border border-indigo-200">AI 활용</span>` : ''}
+                </div>
+                ${c.desc ? `<div class="text-[11px] font-normal text-slate-400 mt-0.5 leading-snug max-w-xs whitespace-normal">${c.desc}</div>` : ''}
+            </th>
+        `;
+        tableHTML += `<td class="px-3 py-3.5 text-center font-bold text-slate-600 whitespace-nowrap">${c.max}</td>`;
+
         categoryPresenters.forEach(p => {
             const score = appState.allScores[p.id]?.scores?.[appState.loginId]?.[c.key];
             const myScore = (score === null || score === undefined) ? '' : score;
             const isInvalid = myScore !== '' && (myScore < 0 || myScore > c.max);
 
             tableHTML += `
-                <td class="px-6 py-4 score-input-cell">
+                <td class="${cellPadClass} score-input-cell">
                     <input type="number" max="${c.max}" min="0" value="${myScore}" data-id="${p.id}" data-key="${c.key}" 
                            placeholder="0~${c.max}"
-                           class="score-input w-24 text-center p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500 ${isInvalid ? 'input-error' : 'border-slate-300'}" 
+                           class="score-input w-20 md:w-24 text-center p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500 ${isInvalid ? 'input-error' : 'border-slate-300'}" 
                            ${isSubmitted ? 'disabled' : ''}>
                 </td>
             `;
@@ -74,17 +102,17 @@ export function renderEvaluationTable(categoryKey) {
 
     tableHTML += `</tbody>`;
     tableHTML += `<tfoot class="font-bold text-slate-900 bg-slate-50">`;
-    tableHTML += `<tr class="border-t-2"><th scope="row" class="px-6 py-4 sticky-col bg-slate-50">내 점수 합계</th><td class="text-center font-bold text-slate-600">100</td>`;
-    
+    tableHTML += `<tr class="border-t-2"><th scope="row" class="px-5 py-4 sticky-col bg-slate-50">내 점수 합계</th><td class="text-center font-bold text-slate-600">${totalMaxPoints}</td>`;
+
     categoryPresenters.forEach(p => {
         const myTotal = criteria.reduce((sum, c) => {
             return sum + (appState.allScores[p.id]?.scores?.[appState.loginId]?.[c.key] || 0);
         }, 0);
-        tableHTML += `<td class="px-6 py-4 text-center text-lg text-sky-600 font-extrabold">${myTotal}</td>`;
+        tableHTML += `<td class="${cellPadClass} text-center text-lg text-sky-600 font-extrabold">${myTotal}</td>`;
     });
     tableHTML += `</tr>`;
 
-    tableHTML += `<tr class="border-t"><th scope="row" class="px-6 py-4 sticky-col bg-slate-50">평균 점수</th><td></td>`;
+    tableHTML += `<tr class="border-t"><th scope="row" class="px-5 py-4 sticky-col bg-slate-50">평균 점수</th><td></td>`;
     categoryPresenters.forEach(p => {
         const presenterScores = appState.allScores[p.id]?.scores;
         let totalAverage = "0.00";
@@ -97,7 +125,7 @@ export function renderEvaluationTable(categoryKey) {
                 totalAverage = (sumOfScores / evaluatorIds.length).toFixed(2);
             }
         }
-        tableHTML += `<td class="px-6 py-4 text-center text-lg text-teal-600 font-extrabold">${totalAverage}</td>`;
+        tableHTML += `<td class="${cellPadClass} text-center text-lg text-teal-600 font-extrabold">${totalAverage}</td>`;
     });
     tableHTML += `</tr>`;
     tableHTML += `</tfoot></table></div>`;
@@ -112,11 +140,11 @@ export function renderEvaluationTable(categoryKey) {
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
     `;
 
-    categoryPresenters.forEach(p => {
+    categoryPresenters.forEach((p, idx) => {
         const comment = appState.allScores[p.id]?.comments?.[appState.loginId] || '';
         commentsHTML += `
             <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
-                <label class="block text-xs font-bold text-slate-700 mb-1.5">${p.name} 심사평</label>
+                <label class="block text-xs font-bold text-slate-700 mb-1.5">#${idx + 1} ${p.name} 심사평</label>
                 <textarea data-presenter-id="${p.id}" class="evaluator-comment-input w-full p-2 text-xs md:text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 resize-none h-16" placeholder="과제의 우수한 점 또는 개선 제언을 작성해 주세요..." ${isSubmitted ? 'disabled' : ''}>${comment}</textarea>
             </div>
         `;
@@ -163,16 +191,16 @@ export function renderColumnTotals(categoryKey) {
 
     const table = document.querySelector('#tab-content table');
     if (!table || !table.tfoot) return;
-    
+
     const criteria = appState.evaluationCriteria[categoryKey] || [];
     const categoryPresenters = appState.presenters[categoryKey] || [];
-    
+
     const myTotalRow = table.tfoot.rows[0];
     const avgTotalRow = table.tfoot.rows[1];
 
     categoryPresenters.forEach((p, index) => {
         const cellIndex = index + 2;
-        
+
         let myTotal = 0;
         if (appState.allScores[p.id]?.scores?.[appState.loginId]) {
             myTotal = criteria.reduce((sum, c) => sum + (appState.allScores[p.id].scores[appState.loginId][c.key] || 0), 0);

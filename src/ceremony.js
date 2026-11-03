@@ -5,15 +5,15 @@
 
 import { initializeFirebaseOnce } from './config/firebase.js';
 import { appState } from './state/appState.js';
-import { 
-    setupConfigListener, 
-    setupRealtimeScoresListener, 
-    setupExcellentPresenterListener 
+import {
+    setupConfigListener,
+    setupRealtimeScoresListener,
+    setupExcellentPresenterListener
 } from './services/firestoreService.js';
-import { 
-    renderAwardCeremony, 
-    handleNextReveal, 
-    handleResetCeremony, 
+import {
+    renderAwardCeremony,
+    handleNextReveal,
+    handleResetCeremony,
     updateCeremonyCards,
     broadcastCeremonyAction
 } from './ui/renderers/awardCeremony.js';
@@ -23,7 +23,6 @@ function renderStandaloneCeremony() {
     const root = document.getElementById('ceremony-standalone-root');
     if (!root) return;
 
-    // isStandalone = true 전달하여 운영용 기능 박스들(부문선택, 효과음, 다시진행, 전체화면, 다음순위공개) 완전 숨김
     root.innerHTML = renderAwardCeremony(true);
 }
 
@@ -37,7 +36,9 @@ async function initCeremony() {
             if (parentState.evaluationCriteria) appState.evaluationCriteria = JSON.parse(JSON.stringify(parentState.evaluationCriteria));
             if (parentState.allScores) appState.allScores = JSON.parse(JSON.stringify(parentState.allScores));
             if (parentState.excellentPresenterSelections) appState.excellentPresenterSelections = JSON.parse(JSON.stringify(parentState.excellentPresenterSelections));
+            if (parentState.awardOverrides) appState.awardOverrides = JSON.parse(JSON.stringify(parentState.awardOverrides));
             if (parentState.selectedPresentationCategory) appState.selectedPresentationCategory = parentState.selectedPresentationCategory;
+            appState.ensureValidCategorySelection();
         }
     } catch (e) {
         console.warn("Could not copy parent state:", e);
@@ -49,9 +50,14 @@ async function initCeremony() {
     // 3. Firebase 초기화 및 실시간 Firestore 리스너 연결
     try {
         await initializeFirebaseOnce();
-        
+
         setupConfigListener(() => {
-            renderStandaloneCeremony();
+            const root = document.getElementById('ceremony-standalone-root');
+            if (root && root.querySelector('#award-ceremony-container')) {
+                updateCeremonyCards();
+            } else {
+                renderStandaloneCeremony();
+            }
         });
 
         setupRealtimeScoresListener(() => {
@@ -96,23 +102,25 @@ async function initCeremony() {
                     handleResetCeremony(true);
                     renderStandaloneCeremony();
                 }
+            } else if (action === 'AWARD_OVERRIDES_UPDATED') {
+                if (payload && payload.overrides !== undefined) {
+                    appState.setAwardOverrides(payload.overrides);
+                    updateCeremonyCards();
+                }
             }
         };
     }
 
     // 5. 별도 창 내부 클릭 이벤트 핸들러
     document.addEventListener('click', async (e) => {
-        // 다음 순위 공개 버튼
         if (e.target.closest('#next-reveal-btn')) {
             handleNextReveal();
         }
 
-        // 다시 진행 버튼
         if (e.target.closest('#reset-ceremony-btn')) {
             handleResetCeremony();
         }
 
-        // 사운드 효과음 토글 버튼
         const soundBtn = e.target.closest('#toggle-ceremony-sound-btn');
         if (soundBtn) {
             const isMuted = await soundEngine.toggleMute();
@@ -120,7 +128,6 @@ async function initCeremony() {
             soundBtn.innerHTML = `<span>${isMuted ? '🔇 음소거' : '🔊 효과음 ON'}</span>`;
         }
 
-        // 전체화면 토글 버튼
         if (e.target.closest('#toggle-ceremony-fullscreen-btn')) {
             const ceremonyContainer = document.getElementById('award-ceremony-container') || document.getElementById('ceremony-standalone-root');
             if (ceremonyContainer) {
@@ -146,7 +153,6 @@ async function initCeremony() {
     });
 }
 
-// DOM 상태에 상관없이 즉시 초기화 실행
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initCeremony);
 } else {

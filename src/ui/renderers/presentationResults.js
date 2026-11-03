@@ -3,20 +3,24 @@
  * 부문별 발표 결과(세로 막대 그래프, 프레젠테이션 전체화면 모드 및 이미지 저장) 렌더링 모듈
  */
 
-import { CATEGORY_DISPLAY_NAMES, INTRO_TEXTS } from '../../config/constants.js';
+import { CATEGORY_DISPLAY_NAMES, CATEGORY_METADATA, INTRO_TEXTS } from '../../config/constants.js';
 import { appState } from '../../state/appState.js';
 import { calculateResults } from '../../utils/calculator.js';
-import { renderPresentationChart, downloadChartAsPNG } from '../chartManager.js';
+import { renderPresentationChart } from '../chartManager.js';
 
 export function renderPresentationResults() {
     const presenters = appState.presenters;
     const criteria = appState.evaluationCriteria;
     const results = calculateResults(presenters, criteria, appState.allScores, appState.excellentPresenterSelections);
-    const selectedCategory = appState.selectedPresentationCategory || '6s';
+    const categories = Object.keys(presenters);
+    const selectedCategory = categories.includes(appState.selectedPresentationCategory)
+        ? appState.selectedPresentationCategory
+        : appState.getFirstCategory();
     const categoryResults = results[selectedCategory] || [];
+    const meta = CATEGORY_METADATA[selectedCategory] || {};
 
     let introHTML = `
-        <div class="p-4 mb-6 bg-sky-50 border border-sky-200 rounded-lg flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+        <div class="p-4 mb-6 bg-sky-50 border border-sky-200 rounded-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
             <p class="text-slate-700 text-sm md:text-base">${INTRO_TEXTS.presentation_results}</p>
             <div class="flex items-center gap-2 flex-shrink-0">
                 <button id="download-presentation-chart-btn" class="text-xs font-semibold px-3 py-2 bg-white hover:bg-slate-50 text-slate-700 rounded-lg border border-slate-300 shadow-sm transition flex items-center gap-1.5">
@@ -30,26 +34,30 @@ export function renderPresentationResults() {
             </div>
         </div>
     `;
-    
+
     let contentHTML = `
-        <div class="mb-6">
-            <label for="category-select" class="block text-sm font-medium text-slate-700 mb-2">부문 선택</label>
-            <select id="category-select" class="block w-full max-w-xs px-4 py-2 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500 font-medium">
+        <div class="mb-6 flex flex-wrap items-center gap-3">
+            <label for="category-select" class="text-sm font-bold text-slate-700">부문 선택:</label>
+            <select id="category-select" class="block w-full max-w-xs px-4 py-2 bg-white border border-slate-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500 font-semibold text-sm">
     `;
 
-    Object.keys(presenters).forEach(category => {
-        contentHTML += `<option value="${category}" ${category === selectedCategory ? 'selected' : ''}>${CATEGORY_DISPLAY_NAMES[category]}</option>`;
+    categories.forEach(category => {
+        const cMeta = CATEGORY_METADATA[category] || {};
+        contentHTML += `<option value="${category}" ${category === selectedCategory ? 'selected' : ''}>${cMeta.icon ? `${cMeta.icon} ` : ''}${CATEGORY_DISPLAY_NAMES[category] || category} 부문 (${(presenters[category] || []).length}건)</option>`;
     });
 
     contentHTML += `
             </select>
         </div>
         <div id="presentation-card-container" class="bg-white rounded-xl shadow p-6 border border-slate-100 transition-all">
-            <div class="flex justify-between items-center mb-4">
-                <h2 class="text-2xl font-bold text-slate-800">${CATEGORY_DISPLAY_NAMES[selectedCategory]} 발표 결과</h2>
-                <span class="text-xs font-medium text-slate-400">평균 점수 + 투표 환산 점수</span>
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4">
+                <div>
+                    <h2 class="text-2xl font-bold text-slate-800">${meta.icon ? `${meta.icon} ` : ''}${CATEGORY_DISPLAY_NAMES[selectedCategory] || selectedCategory} 부문 발표 결과</h2>
+                    ${meta.jobScope ? `<p class="text-xs text-slate-500 mt-0.5">${meta.jobScope}</p>` : ''}
+                </div>
+                <span class="text-xs font-medium text-slate-400">심사위원 평균 점수 + 임직원 투표 환산 점수</span>
             </div>
-            <div class="chart-container mx-auto" style="height:520px; max-width:850px">
+            <div class="chart-container mx-auto" style="height:540px; max-width:960px">
                 <canvas id="presentation-chart"></canvas>
             </div>
         </div>

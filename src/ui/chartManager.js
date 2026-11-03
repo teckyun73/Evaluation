@@ -49,10 +49,16 @@ export function renderRadarChart(category, categoryPresenters, criteriaList, all
 
     const labels = criteriaList.map(c => `${c.name} (${c.max}점)`);
     const colorPalette = [
-        { bg: 'rgba(14, 165, 233, 0.2)', border: '#0ea5e9' },
-        { bg: 'rgba(16, 185, 129, 0.2)', border: '#10b981' },
-        { bg: 'rgba(245, 158, 11, 0.2)', border: '#f59e0b' },
-        { bg: 'rgba(139, 92, 246, 0.2)', border: '#8b5cf6' }
+        { bg: 'rgba(14, 165, 233, 0.16)', border: '#0ea5e9' },
+        { bg: 'rgba(16, 185, 129, 0.16)', border: '#10b981' },
+        { bg: 'rgba(245, 158, 11, 0.16)', border: '#f59e0b' },
+        { bg: 'rgba(139, 92, 246, 0.16)', border: '#8b5cf6' },
+        { bg: 'rgba(236, 72, 153, 0.16)', border: '#ec4899' },
+        { bg: 'rgba(99, 102, 241, 0.16)', border: '#6366f1' },
+        { bg: 'rgba(20, 184, 166, 0.16)', border: '#14b8a6' },
+        { bg: 'rgba(249, 115, 22, 0.16)', border: '#f97316' },
+        { bg: 'rgba(239, 68, 68, 0.16)', border: '#ef4444' },
+        { bg: 'rgba(132, 204, 22, 0.16)', border: '#84cc16' }
     ];
 
     const datasets = categoryPresenters.map((presenter, idx) => {
@@ -199,6 +205,7 @@ export function renderPresentationChart(categoryResults) {
     const avgScores = categoryResults.map(p => p.score);
     const voteScores = categoryResults.map(p => p.voteScore);
     const awards = categoryResults.map(p => p.award);
+    const awardNotes = categoryResults.map(p => p.awardNote || '');
 
     const chartInstance = new Chart(canvas, {
         type: 'bar',
@@ -225,7 +232,7 @@ export function renderPresentationChart(categoryResults) {
             responsive: true,
             maintainAspectRatio: false,
             layout: {
-                padding: { bottom: 30 }
+                padding: { bottom: 42 }
             },
             scales: {
                 x: {
@@ -256,7 +263,9 @@ export function renderPresentationChart(categoryResults) {
                     callbacks: {
                         afterLabel: function(context) {
                             const index = context.dataIndex;
-                            return '훈격: ' + (awards[index] || '-');
+                            const awardText = awards[index] || '-';
+                            const noteText = awardNotes[index] ? ` (${awardNotes[index]})` : '';
+                            return '훈격: ' + awardText + noteText;
                         }
                     }
                 }
@@ -271,7 +280,7 @@ export function renderPresentationChart(categoryResults) {
                     
                     if (bar2) {
                         const totalScore = (avgScores[index] + voteScores[index]).toFixed(2);
-                        const award = awards[index];
+                        const award = awards[index] || '-';
                         
                         ctx.save();
                         ctx.font = 'bold 12px Inter';
@@ -282,14 +291,19 @@ export function renderPresentationChart(categoryResults) {
                         const y = bar2.y - 10;
                         ctx.fillText(totalScore, x, y);
                         
-                        ctx.font = 'bold 15px Inter';
+                        ctx.font = 'bold 13px Inter';
                         let awardColor = '#64748b';
+                        let shortAward = award;
                         if (award === '최우수') awardColor = '#f59e0b';
                         else if (award === '우수') awardColor = '#0ea5e9';
                         else if (award === '장려') awardColor = '#10b981';
+                        else if (award.startsWith('특별상')) {
+                            awardColor = '#8b5cf6';
+                            shortAward = '특별상';
+                        }
                         
                         ctx.fillStyle = awardColor;
-                        ctx.fillText(`[${award}]`, x, chart.chartArea.bottom + 35);
+                        ctx.fillText(`[${shortAward}]`, x, chart.chartArea.bottom + 36);
                         ctx.restore();
                     }
                 });

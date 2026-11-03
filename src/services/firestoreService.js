@@ -18,6 +18,7 @@ import {
     getAppId 
 } from '../config/firebase.js';
 import { appState } from '../state/appState.js';
+import { SCHEMA_VERSION_2026 } from '../config/constants.js';
 import { generateUUID } from '../utils/helpers.js';
 import { hashPassword } from '../utils/crypto.js';
 
@@ -92,7 +93,7 @@ export function setupConfigListener(callback) {
 }
 
 /**
- * 대회 동적 설정을 Firestore에 영구 저장
+ * 대회 동적 설정을 Firestore에 영구 저장 (구형 4개 부문 잔존 키 완전 교체)
  */
 export async function saveRemoteConfig(configData) {
     if (appState.isArchiveMode()) {
@@ -101,9 +102,32 @@ export async function saveRemoteConfig(configData) {
     const db = getDb();
     const configDocRef = doc(db, `/artifacts/${getTargetAppId()}/public/data/config`, 'default-config');
     await setDoc(configDocRef, {
-        ...configData,
+        schemaVersion: SCHEMA_VERSION_2026,
+        eventInfo: configData.eventInfo || appState.eventInfo,
+        presenters: configData.presenters || appState.presenters,
+        evaluationCriteria: configData.evaluationCriteria || appState.evaluationCriteria,
+        awardOverrides: configData.awardOverrides !== undefined ? configData.awardOverrides : (appState.awardOverrides || {}),
         updatedAt: serverTimestamp()
-    }, { merge: true });
+    });
+}
+
+/**
+ * 관리자 최종 훈격/특별상 지정 오버라이드를 Firestore에 저장 (시상식 및 종합결과 실시간 동기화)
+ */
+export async function saveAwardOverrides(overrides = {}) {
+    if (appState.isArchiveMode()) {
+        throw new Error("과거 아카이브(2025년) 모드에서는 훈격을 수정할 수 없습니다.");
+    }
+    const db = getDb();
+    const configDocRef = doc(db, `/artifacts/${getTargetAppId()}/public/data/config`, 'default-config');
+    await setDoc(configDocRef, {
+        schemaVersion: SCHEMA_VERSION_2026,
+        eventInfo: appState.eventInfo,
+        presenters: appState.presenters,
+        evaluationCriteria: appState.evaluationCriteria,
+        awardOverrides: overrides || {},
+        updatedAt: serverTimestamp()
+    });
 }
 
 /**
@@ -548,4 +572,10 @@ export async function resetAllData() {
     }
 
     await Promise.all(batchList);
+
+    // 전체 초기화 시 수동 훈격 오버라이드가 존재하면 함께 초기화
+    if (!appState.isArchiveMode() && appState.awardOverrides && Object.keys(appState.awardOverrides).length > 0) {
+        appState.setAwardOverrides({});
+        await saveAwardOverrides({});
+    }
 }

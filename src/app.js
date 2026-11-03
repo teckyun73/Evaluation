@@ -3,37 +3,32 @@
  * 메인 애플리케이션 진입점 및 전역 이벤트 컨트롤러
  */
 
-import { CATEGORY_DISPLAY_NAMES } from './config/constants.js';
+import { CATEGORY_DISPLAY_NAMES, CATEGORY_METADATA, AWARD_SLOTS_2026 } from './config/constants.js';
 import { appState } from './state/appState.js';
-import { debounce } from './utils/helpers.js';
 import { exportToCSV } from './utils/exportCsv.js';
 import { handleScoreTableKeyDown } from './utils/keyboardNav.js';
 import { exportFullDatabaseToJSON, importDatabaseFromJSON } from './utils/backupRestore.js';
 import { soundEngine } from './utils/soundEffects.js';
 import { showMessage, initModal } from './ui/modal.js';
 import { login, logout } from './services/authService.js';
-import { 
-    setupConfigListener,
-    setupRealtimeScoresListener, 
-    setupSubmissionListener, 
-    setupAllSubmissionsListener,
-    setupExcellentPresenterListener, 
+import {
     switchYear,
-    updateScore, 
+    updateScore,
     updateComment,
     submitCategory as firestoreSubmitCategory,
-    saveExcellentSelection, 
-    submitExcellentSelections, 
+    saveExcellentSelection,
+    submitExcellentSelections,
+    saveAwardOverrides,
     resetVoterSessions,
-    runSimulation, 
-    resetSimulationData, 
-    resetAllData 
+    runSimulation,
+    resetSimulationData,
+    resetAllData
 } from './services/firestoreService.js';
 
 // UI 렌더러 모듈
 import { renderEvaluationTable, renderColumnTotals, updateAutosaveBadge } from './ui/renderers/evaluationTable.js';
 import { renderAdminDashboard } from './ui/renderers/adminDashboard.js';
-import { renderAdminSettings, handleSaveConfig, handleChangePassword } from './ui/renderers/adminSettings.js';
+import { renderAdminSettings, handleSaveConfig, handleChangePassword, syncSettingsFormToState } from './ui/renderers/adminSettings.js';
 import { renderAwardCeremony, handleNextReveal, handleResetCeremony, updateCeremonyCards, broadcastCeremonyAction } from './ui/renderers/awardCeremony.js';
 import { renderRadarAnalysis } from './ui/renderers/radarAnalysis.js';
 import { renderResults } from './ui/renderers/results.js';
@@ -44,6 +39,11 @@ import { renderVoterDetailedResults } from './ui/renderers/voterDetailedResults.
 import { renderFinalResults } from './ui/renderers/finalResults.js';
 import { renderFinalResultsCharts, downloadChartAsPNG } from './ui/chartManager.js';
 import { renderExcellentPresenters } from './ui/renderers/excellentPresenters.js';
+
+// 별도 창(ceremony.html)에서 부모 창 상태를 즉시 복제할 수 있도록 전역 노출
+if (typeof window !== 'undefined') {
+    window.appState = appState;
+}
 
 // 셀별 독립 디바운스 타이머 및 진행 중인 저장 작업 추적 (빠른 연속 입력 시 누락 방지 + 로그아웃 시 즉시 플러시)
 const pendingScoreTimers = new Map();
@@ -103,9 +103,66 @@ async function flushPendingSaves() {
 }
 
 /**
+ * 현재 활성 연도의 부문 목록에 맞춰 상단 평가 부문 탭을 동적 생성/동기화
+ */
+function syncCategoryTabButtons() {
+    const tabNav = document.getElementById('tab-buttons');
+    if (!tabNav) return;
+
+    const categories = Object.keys(appState.presenters || {});
+    const existingCatBtns = Array.from(tabNav.querySelectorAll('button[data-category-tab="true"]'));
+    const existingKeys = existingCatBtns.map(b => b.dataset.tab);
+
+    const needsRebuild =
+        categories.length !== existingKeys.length ||
+        categories.some((cat, i) => cat !== existingKeys[i]);
+
+    if (needsRebuild) {
+        existingCatBtns.forEach(btn => btn.remove());
+        const firstSystemBtn = tabNav.querySelector('button:not([data-category-tab="true"])');
+
+        categories.forEach(cat => {
+            const meta = CATEGORY_METADATA[cat] || {};
+            const label = meta.tabLabel || `${CATEGORY_DISPLAY_NAMES[cat] || cat}`;
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.dataset.tab = cat;
+            btn.dataset.categoryTab = 'true';
+            btn.className = 'tab-button text-sm md:text-base font-medium text-center text-slate-500 border-b-2 border-transparent px-4 py-3 hover:text-slate-700 hover:border-slate-300';
+            btn.textContent = label;
+            if (firstSystemBtn) {
+                tabNav.insertBefore(btn, firstSystemBtn);
+            } else {
+                tabNav.appendChild(btn);
+            }
+        });
+    } else {
+        existingCatBtns.forEach(btn => {
+            const cat = btn.dataset.tab;
+            const meta = CATEGORY_METADATA[cat] || {};
+            const label = meta.tabLabel || `${CATEGORY_DISPLAY_NAMES[cat] || cat}`;
+            if (btn.textContent !== label) {
+                btn.textContent = label;
+            }
+        });
+    }
+
+    tabNav.querySelectorAll('button.tab-button').forEach(btn => {
+        if (btn.dataset.tab === appState.activeTab) {
+            btn.classList.add('active');
+        } else {
+            btn.classList.remove('active');
+        }
+    });
+}
+
+/**
  * 역할에 따른 UI 탭 및 관리자 버튼 가시성 제어
  */
 export function updateUIVisibility() {
+    appState.ensureValidCategorySelection();
+    syncCategoryTabButtons();
+
     const allTabs = document.querySelectorAll('#tab-buttons button');
     const simBtn = document.getElementById('simulationBtn');
     const exportBtn = document.getElementById('exportBtn');
@@ -143,14 +200,22 @@ export function updateUIVisibility() {
         allTabs.forEach(tab => tab.style.display = 'inline-flex');
 
         if (adminDashboardSlot) {
+            adminDashboardSlot.classList.remove('hidden');
             adminDashboardSlot.innerHTML = renderAdminDashboard();
             adminDashboardSlot.style.display = 'block';
         }
     } else if (appState.currentUserRole === 'voter') {
         showBtn(saveLogoutBtn);
-        if (adminDashboardSlot) adminDashboardSlot.style.display = 'none';
-        
+        if (adminDashboardSlot) {
+            adminDashboardSlot.classList.add('hidden');
+            adminDashboardSlot.style.display = 'none';
+        }
+
         const voterVisibleTabs = ['excellent_presenters', 'live_vote_status'];
+        if (!voterVisibleTabs.includes(appState.activeTab)) {
+            appState.activeTab = 'excellent_presenters';
+            syncCategoryTabButtons();
+        }
         allTabs.forEach(tab => {
             if (voterVisibleTabs.includes(tab.dataset.tab)) {
                 tab.style.display = 'inline-flex';
@@ -158,24 +223,27 @@ export function updateUIVisibility() {
                 tab.style.display = 'none';
             }
         });
-        if (!voterVisibleTabs.includes(appState.activeTab)) {
-            const firstVoterTab = document.querySelector('.tab-button[data-tab="excellent_presenters"]');
-            if (firstVoterTab) firstVoterTab.click();
-        }
     } else if (appState.currentUserRole === 'evaluator') {
         showBtn(saveLogoutBtn);
-        if (adminDashboardSlot) adminDashboardSlot.style.display = 'none';
-        
+        if (adminDashboardSlot) {
+            adminDashboardSlot.classList.add('hidden');
+            adminDashboardSlot.style.display = 'none';
+        }
+
         const evaluatorHiddenTabs = [
-            'detailed_results', 
-            'voter_detailed_results', 
-            'final_results', 
-            'excellent_presenters', 
-            'live_vote_status', 
+            'detailed_results',
+            'voter_detailed_results',
+            'final_results',
+            'excellent_presenters',
+            'live_vote_status',
             'presentation_results',
             'award_ceremony',
             'admin_settings'
         ];
+        if (evaluatorHiddenTabs.includes(appState.activeTab)) {
+            appState.activeTab = appState.getFirstCategory();
+            syncCategoryTabButtons();
+        }
         allTabs.forEach(tab => {
             if (evaluatorHiddenTabs.includes(tab.dataset.tab)) {
                 tab.style.display = 'none';
@@ -183,10 +251,6 @@ export function updateUIVisibility() {
                 tab.style.display = 'inline-flex';
             }
         });
-        if (evaluatorHiddenTabs.includes(appState.activeTab)) {
-            const firstEvalTab = document.querySelector('.tab-button[data-tab="6s"]');
-            if (firstEvalTab) firstEvalTab.click();
-        }
     }
 }
 
@@ -301,7 +365,7 @@ async function handleSubmitCategory(categoryKey) {
     }
 
     if (!allScoresFilled) {
-        showMessage(`'${CATEGORY_DISPLAY_NAMES[categoryKey]}' 부문의 모든 항목을 평가해야 제출할 수 있습니다.`);
+        showMessage(`'${CATEGORY_DISPLAY_NAMES[categoryKey] || categoryKey}' 부문의 모든 항목을 평가해야 제출할 수 있습니다.`);
         return;
     }
 
@@ -309,13 +373,17 @@ async function handleSubmitCategory(categoryKey) {
         try {
             await flushPendingSaves();
             await firestoreSubmitCategory(categoryKey);
-            showMessage(`'${CATEGORY_DISPLAY_NAMES[categoryKey]}' 부문 평가를 최종 제출했습니다. 이제 수정할 수 없습니다.`);
+            showMessage(`'${CATEGORY_DISPLAY_NAMES[categoryKey] || categoryKey}' 부문 평가를 최종 제출했습니다. 이제 수정할 수 없습니다.`);
+            render();
         } catch (error) {
             console.error("Error submitting category:", error);
             showMessage("제출 중 오류가 발생했습니다. 다시 시도해 주세요.");
         }
     });
 }
+
+// 중복 구독 방지 플래그
+let isStateListenerBound = false;
 
 /**
  * 로그인 폼 처리
@@ -340,26 +408,35 @@ async function onLoginSubmit() {
         document.getElementById('login-container').classList.add('hidden');
         document.getElementById('app-container').classList.remove('hidden');
 
-        const roleText = appState.currentUserRole === 'admin' ? '관리자' : 
+        const roleText = appState.currentUserRole === 'admin' ? '관리자' :
                          appState.currentUserRole === 'evaluator' ? '평가자' : '투표자';
         const userInfoEl = document.getElementById('userInfo');
         if (userInfoEl) userInfoEl.textContent = `${roleText}: ${appState.loginId}`;
 
-        // 상태 변경 리스너 구독 (자동저장 뱃지 갱신)
-        appState.subscribe((eventType) => {
-            if (eventType === 'SAVE_STATUS_CHANGED') {
-                updateAutosaveBadge();
-            }
-            if (eventType === 'CONFIG_CHANGED') {
-                render();
-            }
-        });
+        // 상태 변경 리스너 구독 (자동저장 뱃지 및 설정 변경 갱신)
+        if (!isStateListenerBound) {
+            isStateListenerBound = true;
+            appState.subscribe((eventType) => {
+                if (eventType === 'SAVE_STATUS_CHANGED') {
+                    updateAutosaveBadge();
+                }
+                if (eventType === 'CONFIG_CHANGED') {
+                    if (appState.activeTab === 'award_ceremony') {
+                        updateCeremonyCards();
+                    } else if (appState.activeTab !== 'admin_settings') {
+                        render();
+                    } else {
+                        syncCategoryTabButtons();
+                    }
+                }
+            });
+        }
 
         // 실시간 Firestore 리스너 일괄 연동 함수
         function onFirestoreUpdate() {
             const isAggregateTab = [
-                'results', 'detailed_results', 'final_results', 
-                'excellent_presenters', 'voter_detailed_results', 
+                'results', 'detailed_results', 'final_results',
+                'excellent_presenters', 'voter_detailed_results',
                 'live_vote_status', 'presentation_results', 'radar_analysis'
             ].includes(appState.activeTab);
 
@@ -367,7 +444,7 @@ async function onLoginSubmit() {
                 render();
             } else if (appState.activeTab === 'award_ceremony') {
                 updateCeremonyCards();
-            } else {
+            } else if (appState.activeTab !== 'admin_settings') {
                 renderColumnTotals(appState.activeTab);
             }
 
@@ -491,6 +568,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (yearSelector) {
         yearSelector.addEventListener('change', (e) => {
             const selectedYear = parseInt(e.target.value, 10);
+            handleResetCeremony();
             broadcastCeremonyAction('SET_YEAR', { year: selectedYear });
             switchYear(selectedYear, () => {
                 render();
@@ -502,6 +580,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (returnTo2026Btn) {
         returnTo2026Btn.addEventListener('click', () => {
             if (yearSelector) yearSelector.value = '2026';
+            handleResetCeremony();
             broadcastCeremonyAction('SET_YEAR', { year: 2026 });
             switchYear(2026, () => {
                 render();
@@ -638,10 +717,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const tabButtons = document.getElementById('tab-buttons');
     if (tabButtons) {
         tabButtons.addEventListener('click', (e) => {
-            if (e.target.tagName === 'BUTTON') {
-                appState.setActiveTab(e.target.dataset.tab);
-                document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
-                e.target.classList.add('active');
+            const btn = e.target.closest('button[data-tab]');
+            if (btn) {
+                appState.setActiveTab(btn.dataset.tab);
+                document.querySelectorAll('.tab-button').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
                 render();
             }
         });
@@ -674,7 +754,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const categoryKey = e.target.dataset.category;
                 handleSubmitCategory(categoryKey);
             }
-            
+
             if (e.target.id === 'excellent-presenter-submit-btn') {
                 if (appState.isArchiveMode()) {
                     showMessage("과거 아카이브(2025년) 모드에서는 투표를 제출할 수 없습니다.");
@@ -725,22 +805,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // 발표 결과 차트 이미지 저장
             if (e.target.closest('#download-presentation-chart-btn')) {
-                const selectedCat = appState.selectedPresentationCategory || '6s';
+                const selectedCat = appState.selectedPresentationCategory || appState.getFirstCategory();
                 downloadChartAsPNG('presentation-chart', `${selectedCat}_presentation_result.png`);
             }
 
             // 레이더 차트 이미지 저장
             if (e.target.closest('#download-radar-chart-btn')) {
-                const selectedCat = appState.selectedPresentationCategory || '6s';
+                const selectedCat = appState.selectedPresentationCategory || appState.getFirstCategory();
                 downloadChartAsPNG('radar-analysis-chart', `${selectedCat}_radar_analysis.png`);
             }
 
-            // 시상식 다음 공개 버튼 (전체화면 풀림 없이 내부 카드만 갱신)
+            // 시상식 다음 공개 버튼
             if (e.target.closest('#next-reveal-btn')) {
                 handleNextReveal();
             }
 
-            // 시상식 초기화 버튼 (전체화면 풀림 없이 내부 카드만 갱신)
+            // 시상식 초기화 버튼
             if (e.target.closest('#reset-ceremony-btn')) {
                 handleResetCeremony();
             }
@@ -749,15 +829,15 @@ document.addEventListener('DOMContentLoaded', () => {
             const soundBtn = e.target.closest('#toggle-ceremony-sound-btn');
             if (soundBtn) {
                 const isMuted = await soundEngine.toggleMute();
-                soundBtn.className = `text-xs md:text-sm font-semibold px-3.5 py-2 ${isMuted ? 'bg-slate-300 text-slate-600' : 'bg-emerald-600 text-white'} rounded-lg transition shadow flex items-center gap-1`;
+                soundBtn.className = `h-9 text-xs md:text-sm font-semibold px-3 ${isMuted ? 'bg-slate-200 text-slate-600 hover:bg-slate-300' : 'bg-emerald-600 hover:bg-emerald-700 text-white'} rounded-lg transition shadow-sm flex items-center justify-center gap-1 flex-shrink-0 whitespace-nowrap`;
                 soundBtn.innerHTML = `<span>${isMuted ? '🔇 음소거' : '🔊 효과음 ON'}</span>`;
             }
 
             // 시상식 별도 창 열기 버튼 (듀얼모니터/빔프로젝터용)
             if (e.target.closest('#open-ceremony-window-btn')) {
                 window.open(
-                    './ceremony.html', 
-                    'AwardCeremonyPopout', 
+                    './ceremony.html',
+                    'AwardCeremonyPopout',
                     'width=1920,height=1080,menubar=no,toolbar=no,location=no,status=no,resizable=yes'
                 );
             }
@@ -776,9 +856,54 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
 
+            // 최종 결과: 훈격 확정 저장 (시상식 및 종합결과 동기화)
+            if (e.target.closest('#save-final-awards-btn')) {
+                if (appState.isArchiveMode() || !appState.finalResultsData) return;
+                const overrides = {};
+                Object.keys(appState.finalResultsData).forEach(cat => {
+                    (appState.finalResultsData[cat] || []).forEach(p => {
+                        overrides[p.id] = {
+                            awardId: p.awardId || (p.award === '-' ? '-' : ''),
+                            award: p.award || '-',
+                            note: p.awardNote || '',
+                            tier: p.awardTier || ''
+                        };
+                    });
+                });
+                try {
+                    await saveAwardOverrides(overrides);
+                    appState.setAwardOverrides(overrides);
+                    broadcastCeremonyAction('AWARD_OVERRIDES_UPDATED', { overrides });
+                    render();
+                    showMessage("최종 훈격 및 특별상 지정 내역이 확정 저장되었으며, 종합 결과 및 시상식 무대 화면에 즉시 동기화되었습니다.");
+                } catch (err) {
+                    console.error("Save final awards error:", err);
+                    showMessage("훈격 확정 저장 중 오류가 발생했습니다: " + err.message);
+                }
+            }
+
+            // 최종 결과: 점수 순위대로 자동 재산정
+            if (e.target.closest('#reset-final-awards-btn')) {
+                if (appState.isArchiveMode()) return;
+                showMessage('수동 지정한 훈격을 해제하고 종합점수 순위 기준으로 자동 재산정하시겠습니까?', true, async () => {
+                    try {
+                        await saveAwardOverrides({});
+                        appState.setAwardOverrides({});
+                        appState.resetFinalResultsCache();
+                        broadcastCeremonyAction('AWARD_OVERRIDES_UPDATED', { overrides: {} });
+                        render();
+                        showMessage("종합점수 순위 기준으로 훈격이 자동 재산정되었습니다.");
+                    } catch (err) {
+                        console.error("Reset final awards error:", err);
+                        showMessage("자동 재산정 초기화 중 오류가 발생했습니다: " + err.message);
+                    }
+                });
+            }
+
             // 설정 저장 버튼
             if (e.target.closest('#save-config-btn')) {
                 await handleSaveConfig();
+                render();
             }
 
             // 관리자 비밀번호 변경 버튼
@@ -793,15 +918,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // 발표자 추가 버튼
             if (e.target.classList.contains('add-presenter-btn')) {
+                syncSettingsFormToState();
                 const category = e.target.dataset.category;
-                const nextNum = (appState.presenters[category]?.length || 0) + 1;
-                const newId = `${category}-${nextNum}`;
-                appState.presenters[category].push({ id: newId, name: `새 발표자 ${nextNum}` });
+                const existingIds = new Set((appState.presenters[category] || []).map(p => p.id));
+                let nextNum = (appState.presenters[category]?.length || 0) + 1;
+                const prefix = category === 'technology' ? 'tech' : category;
+                let newId = `${prefix}-${nextNum}`;
+                while (existingIds.has(newId)) {
+                    nextNum++;
+                    newId = `${prefix}-${nextNum}`;
+                }
+                const labelPrefix = CATEGORY_DISPLAY_NAMES[category] || category;
+                appState.presenters[category].push({ id: newId, name: `${labelPrefix}과제 ${nextNum}` });
                 render();
             }
 
             // 발표자 삭제 버튼
             if (e.target.classList.contains('delete-presenter-btn')) {
+                syncSettingsFormToState();
                 const category = e.target.dataset.category;
                 const index = parseInt(e.target.dataset.index, 10);
                 if (appState.presenters[category].length <= 1) {
@@ -809,6 +943,33 @@ document.addEventListener('DOMContentLoaded', () => {
                     return;
                 }
                 appState.presenters[category].splice(index, 1);
+                render();
+            }
+
+            // 배점 기준 항목 추가 버튼
+            if (e.target.classList.contains('add-criterion-btn')) {
+                syncSettingsFormToState();
+                const category = e.target.dataset.category;
+                const nextIdx = (appState.evaluationCriteria[category]?.length || 0) + 1;
+                const newKey = `${category}_custom_${Date.now().toString(36)}`;
+                appState.evaluationCriteria[category].push({
+                    key: newKey,
+                    name: `신규 평가항목 ${nextIdx}`,
+                    max: 0
+                });
+                render();
+            }
+
+            // 배점 기준 항목 삭제 버튼
+            if (e.target.classList.contains('delete-criterion-btn')) {
+                syncSettingsFormToState();
+                const category = e.target.dataset.category;
+                const index = parseInt(e.target.dataset.index, 10);
+                if (appState.evaluationCriteria[category].length <= 1) {
+                    showMessage("최소 1개 이상의 평가 항목이 존재해야 합니다.");
+                    return;
+                }
+                appState.evaluationCriteria[category].splice(index, 1);
                 render();
             }
         });
@@ -819,6 +980,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 appState.setPresentationCategory(e.target.value);
                 broadcastCeremonyAction('SET_CATEGORY', { category: e.target.value });
                 handleResetCeremony();
+                render();
                 return;
             }
 
@@ -839,6 +1001,34 @@ document.addEventListener('DOMContentLoaded', () => {
                     appState.finalResultsData[category][index].name = selectedPresenter.name;
                     renderFinalResultsCharts(appState.finalResultsData);
                 }
+            }
+
+            if (e.target.classList.contains('final-award-select')) {
+                const tr = e.target.closest('tr');
+                if (!tr || !appState.finalResultsData) return;
+                const category = tr.dataset.category;
+                const index = parseInt(tr.dataset.index, 10);
+                const selectedAwardId = e.target.value;
+                const targetItem = appState.finalResultsData[category]?.[index];
+                if (!targetItem) return;
+
+                if (selectedAwardId === '-') {
+                    targetItem.award = '-';
+                    targetItem.awardId = '-';
+                    targetItem.awardTier = '';
+                    targetItem.awardNote = '';
+                } else {
+                    const matchedSlot = (AWARD_SLOTS_2026[category] || []).find(s => s.awardId === selectedAwardId);
+                    if (matchedSlot) {
+                        targetItem.award = matchedSlot.award;
+                        targetItem.awardId = matchedSlot.awardId;
+                        targetItem.awardTier = matchedSlot.tier;
+                        targetItem.awardNote = matchedSlot.note || '';
+                    }
+                }
+
+                const noteEl = tr.querySelector('.final-award-note');
+                if (noteEl) noteEl.textContent = targetItem.awardNote || '';
             }
         });
 
@@ -869,14 +1059,29 @@ document.addEventListener('DOMContentLoaded', () => {
                 const presenterId = e.target.dataset.presenterId;
                 debouncedUpdateComment(presenterId, e.target.value);
             }
+
+            // 설정 관리 배점 입력 시 합계 실시간 표시 업데이트
+            if (e.target.classList.contains('criterion-max-input')) {
+                const card = e.target.closest('div.border-slate-200.rounded-xl');
+                if (card) {
+                    const inputs = card.querySelectorAll('.criterion-max-input');
+                    let sum = 0;
+                    inputs.forEach(inp => { sum += parseInt(inp.value, 10) || 0; });
+                    const badge = card.querySelector('span.rounded');
+                    if (badge) {
+                        badge.textContent = `총 ${sum}점`;
+                        badge.className = `text-xs font-bold px-2.5 py-0.5 rounded whitespace-nowrap ${sum === 100 ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`;
+                    }
+                }
+            }
         });
 
-        // 포커스 아웃 이벤트 (관리자 최종 결과 수정 반영)
+        // 포커스 아웃 이벤트 (관리자 최종 결과 점수/훈격 수정 반영)
         tabContent.addEventListener('blur', (e) => {
-            if (e.target.classList.contains('final-score-cell') || 
-                e.target.classList.contains('final-award-cell') || 
+            if (e.target.classList.contains('final-score-cell') ||
+                e.target.classList.contains('final-award-cell') ||
                 e.target.classList.contains('final-vote-score-cell')) {
-                
+
                 const tr = e.target.closest('tr');
                 if (!tr || !appState.finalResultsData) return;
                 const category = tr.dataset.category;
@@ -888,14 +1093,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 } else if (e.target.classList.contains('final-vote-score-cell')) {
                     const newVoteScore = parseInt(e.target.textContent, 10) || 0;
                     appState.finalResultsData[category][index].voteScore = newVoteScore;
-                } else if (e.target.contains && e.target.classList.contains('final-award-cell')) {
+                } else if (e.target.classList.contains('final-award-cell')) {
                     const newAward = e.target.textContent.trim();
                     appState.finalResultsData[category][index].award = newAward;
                 }
 
                 const currentData = appState.finalResultsData[category][index];
                 currentData.totalScore = currentData.score + currentData.voteScore;
-                
+
                 const totalCell = tr.querySelector('.final-total-score-cell');
                 if (totalCell) totalCell.textContent = currentData.totalScore.toFixed(2);
 

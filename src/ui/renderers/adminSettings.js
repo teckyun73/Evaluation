@@ -1,10 +1,10 @@
 /**
  * adminSettings.js
- * 관리자 전용 발표자, 평가 기준, 대회 정보 및 보안/비밀번호 관리 뷰
+ * 관리자 전용 발표자, 평가 배점 기준(AI 항목 포함), 대회 정보 및 보안/비밀번호 관리 뷰
  * (2025년 과거 아카이브 모드 시 읽기 전용 잠금 완벽 적용)
  */
 
-import { CATEGORY_DISPLAY_NAMES } from '../../config/constants.js';
+import { CATEGORY_DISPLAY_NAMES, CATEGORY_METADATA, SCHEMA_VERSION_2026 } from '../../config/constants.js';
 import { appState } from '../../state/appState.js';
 import { saveRemoteConfig, changeSystemPassword } from '../../services/firestoreService.js';
 import { showMessage } from '../modal.js';
@@ -36,7 +36,7 @@ export function renderAdminSettings() {
             <div class="p-4 bg-purple-50 border border-purple-200 rounded-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
                     <h2 class="text-xl font-bold text-purple-900">대회 및 보안 설정 관리 (${appState.currentYear}년)</h2>
-                    <p class="text-sm text-purple-700 mt-0.5">대회 메타데이터, 발표자 명단, 배점 기준 및 시스템 보안 비밀번호를 직접 관리합니다.</p>
+                    <p class="text-sm text-purple-700 mt-0.5">대회 메타데이터, 부문별 발표 과제/발표자 명단, 평가 배점 기준(총 100점) 및 시스템 비밀번호를 관리합니다.</p>
                 </div>
                 <div class="flex gap-2">
                     <button id="save-config-btn" ${isArchive ? 'disabled' : ''} class="${isArchive ? 'bg-slate-400 cursor-not-allowed opacity-60' : 'bg-purple-600 hover:bg-purple-700'} text-white text-sm font-semibold px-5 py-2.5 rounded-lg shadow-sm transition flex items-center gap-2">
@@ -71,26 +71,30 @@ export function renderAdminSettings() {
 
             <!-- 2. 부문별 발표자 명단 관리 -->
             <div class="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
-                <h3 class="text-lg font-bold text-slate-800 mb-4 border-b pb-2">2. 부문별 발표자 명단 관리</h3>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <h3 class="text-lg font-bold text-slate-800 mb-4 border-b pb-2">2. 부문별 발표자(과제) 명단 관리</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
     `;
 
     Object.keys(presenters).forEach(category => {
+        const meta = CATEGORY_METADATA[category] || {};
         html += `
-            <div class="border border-slate-200 rounded-lg p-4 bg-slate-50/50">
-                <div class="flex justify-between items-center mb-3">
-                    <h4 class="font-bold text-slate-800">${CATEGORY_DISPLAY_NAMES[category]} 발표자 (${presenters[category].length}명)</h4>
-                    ${!isArchive ? `<button class="add-presenter-btn text-xs font-semibold text-sky-600 hover:text-sky-800 bg-sky-50 px-2.5 py-1 rounded border border-sky-200" data-category="${category}">+ 발표자 추가</button>` : ''}
+            <div class="border border-slate-200 rounded-xl p-4 bg-slate-50/50">
+                <div class="flex justify-between items-start gap-2 mb-3">
+                    <div>
+                        <h4 class="font-bold text-slate-800">${meta.icon ? `${meta.icon} ` : ''}${CATEGORY_DISPLAY_NAMES[category] || category} 부문 (${presenters[category].length}건)</h4>
+                        ${meta.jobScope ? `<p class="text-xs text-slate-500 mt-0.5">${meta.jobScope}</p>` : ''}
+                    </div>
+                    ${!isArchive ? `<button class="add-presenter-btn text-xs font-semibold text-sky-600 hover:text-sky-800 bg-sky-50 px-2.5 py-1 rounded border border-sky-200 whitespace-nowrap" data-category="${category}">+ 발표자 추가</button>` : ''}
                 </div>
                 <div class="space-y-2" id="presenter-list-${category}">
         `;
 
         presenters[category].forEach((p, idx) => {
             html += `
-                <div class="flex items-center gap-2 bg-white p-2 border rounded-md" data-category="${category}" data-index="${idx}">
-                    <span class="text-xs font-bold text-slate-400 w-6">${idx + 1}</span>
-                    <input type="text" value="${p.name}" ${inputStateAttr} class="presenter-name-input flex-grow px-2 py-1 text-sm border rounded ${inputClassExtra}" placeholder="성명 및 직급 (또는 회사명)">
-                    ${!isArchive ? `<button class="delete-presenter-btn text-red-500 hover:text-red-700 text-xs px-2 py-1" data-category="${category}" data-index="${idx}">삭제</button>` : ''}
+                <div class="flex items-center gap-2 bg-white p-2 border rounded-md presenter-config-row" data-category="${category}" data-index="${idx}">
+                    <span class="text-xs font-bold text-slate-400 w-6 text-center">${idx + 1}</span>
+                    <input type="text" value="${p.name}" ${inputStateAttr} class="presenter-name-input flex-grow px-2 py-1 text-sm border rounded ${inputClassExtra}" placeholder="발표자 성명/직급 또는 회사·과제명">
+                    ${!isArchive ? `<button class="delete-presenter-btn text-red-500 hover:text-red-700 text-xs px-2 py-1 whitespace-nowrap" data-category="${category}" data-index="${idx}">삭제</button>` : ''}
                 </div>
             `;
         });
@@ -105,29 +109,38 @@ export function renderAdminSettings() {
                 </div>
             </div>
 
-            <!-- 3. 부문별 배점 기준 확인 -->
+            <!-- 3. 부문별 배점 기준 확인 및 편집 -->
             <div class="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
                 <h3 class="text-lg font-bold text-slate-800 mb-4 border-b pb-2">3. 부문별 평가 배점 기준 (총 100점)</h3>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
     `;
 
     Object.keys(criteria).forEach(category => {
+        const meta = CATEGORY_METADATA[category] || {};
         const totalMax = criteria[category].reduce((sum, c) => sum + (parseInt(c.max, 10) || 0), 0);
         html += `
-            <div class="border border-slate-200 rounded-lg p-4 bg-slate-50/50">
-                <div class="flex justify-between items-center mb-3">
-                    <h4 class="font-bold text-slate-800">${CATEGORY_DISPLAY_NAMES[category]} 배점 기준</h4>
-                    <span class="text-xs font-bold px-2 py-0.5 rounded ${totalMax === 100 ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}">총 ${totalMax}점</span>
+            <div class="border border-slate-200 rounded-xl p-4 bg-slate-50/50">
+                <div class="flex justify-between items-center mb-3 gap-2">
+                    <div>
+                        <h4 class="font-bold text-slate-800">${meta.icon ? `${meta.icon} ` : ''}${CATEGORY_DISPLAY_NAMES[category] || category} 부문 배점 기준</h4>
+                        ${meta.jobScope ? `<p class="text-xs text-slate-500 mt-0.5">${meta.jobScope}</p>` : ''}
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs font-bold px-2.5 py-0.5 rounded whitespace-nowrap ${totalMax === 100 ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}">총 ${totalMax}점</span>
+                        ${!isArchive ? `<button class="add-criterion-btn text-xs font-semibold text-purple-600 hover:text-purple-800 bg-purple-50 px-2 py-1 rounded border border-purple-200 whitespace-nowrap" data-category="${category}">+ 항목 추가</button>` : ''}
+                    </div>
                 </div>
                 <div class="space-y-2">
         `;
 
         criteria[category].forEach((c, idx) => {
             html += `
-                <div class="flex items-center gap-2 bg-white p-2 border rounded-md" data-category="${category}" data-index="${idx}">
-                    <input type="text" value="${c.name}" ${inputStateAttr} class="criterion-name-input flex-grow px-2 py-1 text-xs border rounded ${inputClassExtra}" placeholder="항목명">
-                    <input type="number" value="${c.max}" ${inputStateAttr} class="criterion-max-input w-16 px-2 py-1 text-xs border rounded text-center ${inputClassExtra}" placeholder="배점">
+                <div class="flex items-center gap-2 bg-white p-2 border rounded-md criterion-config-row" data-category="${category}" data-index="${idx}">
+                    <span class="text-xs font-bold text-slate-400 w-5 text-center">${idx + 1}</span>
+                    <input type="text" value="${c.name}" ${inputStateAttr} class="criterion-name-input flex-grow px-2 py-1 text-xs md:text-sm border rounded ${inputClassExtra}" placeholder="항목명">
+                    <input type="number" value="${c.max}" ${inputStateAttr} class="criterion-max-input w-16 px-2 py-1 text-xs md:text-sm border rounded text-center font-semibold ${inputClassExtra}" placeholder="배점">
                     <span class="text-xs text-slate-500">점</span>
+                    ${!isArchive ? `<button class="delete-criterion-btn text-red-500 hover:text-red-700 text-xs px-1.5 py-1 whitespace-nowrap" data-category="${category}" data-index="${idx}">삭제</button>` : ''}
                 </div>
             `;
         });
@@ -199,6 +212,35 @@ export function renderAdminSettings() {
 }
 
 /**
+ * 현재 화면에 입력된 발표자/배점 폼 값을 appState에 임시 동기화 (행 추가/삭제 전 기존 타이핑 보존용)
+ */
+export function syncSettingsFormToState() {
+    document.querySelectorAll('.presenter-name-input').forEach(input => {
+        const row = input.closest('.presenter-config-row');
+        if (row) {
+            const cat = row.dataset.category;
+            const idx = parseInt(row.dataset.index, 10);
+            if (appState.presenters[cat] && appState.presenters[cat][idx]) {
+                appState.presenters[cat][idx].name = input.value.trim();
+            }
+        }
+    });
+
+    document.querySelectorAll('.criterion-name-input').forEach(input => {
+        const row = input.closest('.criterion-config-row');
+        if (row) {
+            const cat = row.dataset.category;
+            const idx = parseInt(row.dataset.index, 10);
+            const maxInput = row.querySelector('.criterion-max-input');
+            if (appState.evaluationCriteria[cat] && appState.evaluationCriteria[cat][idx]) {
+                appState.evaluationCriteria[cat][idx].name = input.value.trim();
+                appState.evaluationCriteria[cat][idx].max = parseInt(maxInput?.value, 10) || 0;
+            }
+        }
+    });
+}
+
+/**
  * 설정 저장 핸들러
  */
 export async function handleSaveConfig() {
@@ -207,7 +249,19 @@ export async function handleSaveConfig() {
         return;
     }
 
+    syncSettingsFormToState();
+
+    // 배점 합계 검증 (부문별 100점 확인)
+    for (const cat of Object.keys(appState.evaluationCriteria)) {
+        const sum = (appState.evaluationCriteria[cat] || []).reduce((acc, c) => acc + (parseInt(c.max, 10) || 0), 0);
+        if (sum !== 100) {
+            showMessage(`'${CATEGORY_DISPLAY_NAMES[cat] || cat}' 부문의 배점 합계가 현재 ${sum}점입니다. 총점이 100점이 되도록 조정한 후 저장해 주세요.`);
+            return;
+        }
+    }
+
     const newConfig = {
+        schemaVersion: SCHEMA_VERSION_2026,
         eventInfo: {
             TITLE: document.getElementById('config-title')?.value || appState.eventInfo.TITLE,
             YEAR: document.getElementById('config-year')?.value || String(appState.currentYear),
@@ -215,38 +269,12 @@ export async function handleSaveConfig() {
             TOTAL_VOTERS: parseInt(document.getElementById('config-total-voters')?.value, 10) || 200
         },
         presenters: JSON.parse(JSON.stringify(appState.presenters)),
-        evaluationCriteria: JSON.parse(JSON.stringify(appState.evaluationCriteria))
+        evaluationCriteria: JSON.parse(JSON.stringify(appState.evaluationCriteria)),
+        awardOverrides: JSON.parse(JSON.stringify(appState.awardOverrides || {}))
     };
-
-    // 발표자 이름 폼 수집
-    document.querySelectorAll('.presenter-name-input').forEach(input => {
-        const row = input.closest('div[data-category]');
-        if (row) {
-            const cat = row.dataset.category;
-            const idx = parseInt(row.dataset.index, 10);
-            if (newConfig.presenters[cat] && newConfig.presenters[cat][idx]) {
-                newConfig.presenters[cat][idx].name = input.value.trim();
-            }
-        }
-    });
-
-    // 배점 항목 폼 수집
-    document.querySelectorAll('.criterion-name-input').forEach(input => {
-        const row = input.closest('div[data-category]');
-        if (row) {
-            const cat = row.dataset.category;
-            const idx = parseInt(row.dataset.index, 10);
-            const maxInput = row.querySelector('.criterion-max-input');
-            if (newConfig.evaluationCriteria[cat] && newConfig.evaluationCriteria[cat][idx]) {
-                newConfig.evaluationCriteria[cat][idx].name = input.value.trim();
-                newConfig.evaluationCriteria[cat][idx].max = parseInt(maxInput.value, 10) || 0;
-            }
-        }
-    });
 
     try {
         await saveRemoteConfig(newConfig);
-        // 현재 연도 캐시에도 즉시 반영
         appState.applyRemoteConfig(newConfig, appState.currentYear);
         showMessage(`[${appState.currentYear}년] 대회 설정이 성공적으로 저장되었습니다. 모든 클라이언트에 실시간 반영됩니다.`);
     } catch (error) {
