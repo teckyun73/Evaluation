@@ -85,12 +85,28 @@ body {
     text-align: center;
 }
 
-/* Sticky Column Shadow for Mobile Scroll */
+/* Sticky Column Shadow & Solid Opaque Background for Horizontal Scroll */
 .sticky-col {
     position: sticky;
     left: 0;
-    z-index: 10;
-    box-shadow: 2px 0 5px -2px rgba(0, 0, 0, 0.1);
+    z-index: 20;
+    box-shadow: 2px 0 6px -2px rgba(0, 0, 0, 0.12);
+}
+
+thead .sticky-col {
+    background-color: #f1f5f9 !important;
+}
+
+tbody .sticky-col {
+    background-color: #ffffff !important;
+}
+
+tbody tr:hover .sticky-col {
+    background-color: #f8fafc !important;
+}
+
+tfoot .sticky-col {
+    background-color: #f8fafc !important;
 }
 
 /* ==========================================================================

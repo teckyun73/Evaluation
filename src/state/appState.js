@@ -24,6 +24,24 @@ const SYSTEM_TABS = new Set([
     'admin_settings'
 ]);
 
+const PREFERRED_CATEGORY_ORDER = ['support', 'technology', '6s', 'six_sigma', 'rnd', 'ai'];
+
+function normalizeCategoryOrder(mapObj) {
+    if (!mapObj || typeof mapObj !== 'object') return mapObj;
+    const ordered = {};
+    PREFERRED_CATEGORY_ORDER.forEach(key => {
+        if (Object.prototype.hasOwnProperty.call(mapObj, key)) {
+            ordered[key] = mapObj[key];
+        }
+    });
+    Object.keys(mapObj).forEach(key => {
+        if (!Object.prototype.hasOwnProperty.call(ordered, key)) {
+            ordered[key] = mapObj[key];
+        }
+    });
+    return ordered;
+}
+
 export const appState = {
     loginId: null,
     currentUserRole: 'evaluator',
@@ -251,10 +269,10 @@ export const appState = {
 
         if (isValid2026Schema) {
             if (config.presenters) {
-                this.yearConfigs[targetYear].presenters = JSON.parse(JSON.stringify(config.presenters));
+                this.yearConfigs[targetYear].presenters = normalizeCategoryOrder(JSON.parse(JSON.stringify(config.presenters)));
             }
             if (config.evaluationCriteria) {
-                this.yearConfigs[targetYear].evaluationCriteria = JSON.parse(JSON.stringify(config.evaluationCriteria));
+                this.yearConfigs[targetYear].evaluationCriteria = normalizeCategoryOrder(JSON.parse(JSON.stringify(config.evaluationCriteria)));
             }
             if (config.awardOverrides !== undefined) {
                 this.yearConfigs[targetYear].awardOverrides = JSON.parse(JSON.stringify(config.awardOverrides || {}));

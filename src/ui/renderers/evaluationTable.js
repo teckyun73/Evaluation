@@ -71,9 +71,9 @@ export function renderEvaluationTable(categoryKey) {
 
     criteria.forEach(c => {
         const isAiCriterion = c.key && c.key.includes('ai_utilization');
-        tableHTML += `<tr class="bg-white border-b hover:bg-slate-50/70 transition ${isAiCriterion ? 'bg-indigo-50/20' : ''}">`;
+        tableHTML += `<tr class="bg-white border-b hover:bg-slate-50 transition">`;
         tableHTML += `
-            <th scope="row" class="px-5 py-3.5 font-semibold text-slate-900 sticky-col ${isAiCriterion ? 'bg-indigo-50/40' : 'bg-white'}">
+            <th scope="row" class="px-5 py-3.5 font-semibold text-slate-900 sticky-col bg-white">
                 <div class="flex items-center gap-1.5 whitespace-nowrap">
                     <span>${c.name}</span>
                     ${isAiCriterion ? `<span class="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700 border border-indigo-200">AI 활용</span>` : ''}
