@@ -3,7 +3,13 @@
  * 평가 점수, 투표 집계, 동점자 처리(Tie-breaking), 2026 신규 포상(특별상 포함) 및 2025 레거시 훈격 산정 로직
  */
 
-import { PRESENTERS, EVALUATION_CRITERIA, VOTE_SCORE_MAP, AWARD_SLOTS_2026 } from '../config/constants.js';
+import {
+    PRESENTERS,
+    EVALUATION_CRITERIA,
+    VOTE_SCORE_MAP,
+    CATEGORY_VOTE_SCORE_MAPS,
+    AWARD_SLOTS_2026
+} from '../config/constants.js';
 import { appState } from '../state/appState.js';
 
 /**
@@ -32,15 +38,23 @@ export function calculateVoteCounts(presenters = PRESENTERS, selections = {}) {
 }
 
 /**
- * 투표 득표 순위에 따른 환산 점수 계산 (동점자 공동 순위 처리 — Standard Competition Ranking 1224 방식)
- * VOTE_SCORE_MAP 기본값: [10, 7, 4, 1] 유지
+ * 투표 득표 순위에 따른 부문별 환산 점수 계산 (동점자 공동 순위 처리 — Standard Competition Ranking 1224 방식)
+ * - 2026년 지원 부문(support): [10, 9, 8, 7, 6, 5, 4, 3, 2, 1] (1~10점, 1점 등분)
+ * - 2026년 기술 부문(technology): [10, 8, 6, 4, 2, 0] (0~10점, 2점 등분)
+ * - 2025년 아카이브 모드: [10, 7, 4, 1] 유지
  */
-export function calculateVoteScores(presenters = PRESENTERS, selections = {}, scoreMap = VOTE_SCORE_MAP) {
+export function calculateVoteScores(presenters = PRESENTERS, selections = {}, scoreMapOverride = null) {
     const voteCounts = calculateVoteCounts(presenters, selections);
     const voteScores = {};
 
     Object.keys(presenters).forEach(category => {
         voteScores[category] = {};
+
+        const categoryScoreMap = Array.isArray(scoreMapOverride)
+            ? scoreMapOverride
+            : (appState.isArchiveMode()
+                ? VOTE_SCORE_MAP
+                : (CATEGORY_VOTE_SCORE_MAPS[category] || VOTE_SCORE_MAP));
 
         const sortedByVotes = Object.entries(voteCounts[category])
             .map(([name, count]) => ({ name, count }))
@@ -60,7 +74,7 @@ export function calculateVoteScores(presenters = PRESENTERS, selections = {}, sc
                 previousCount = item.count;
             }
 
-            const assignedScore = (currentRank < scoreMap.length) ? scoreMap[currentRank] : 0;
+            const assignedScore = (currentRank < categoryScoreMap.length) ? categoryScoreMap[currentRank] : 0;
             voteScores[category][item.name] = assignedScore;
         });
     });

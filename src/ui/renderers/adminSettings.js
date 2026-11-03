@@ -4,7 +4,7 @@
  * (2025년 과거 아카이브 모드 시 읽기 전용 잠금 완벽 적용)
  */
 
-import { CATEGORY_DISPLAY_NAMES, CATEGORY_METADATA, SCHEMA_VERSION_2026 } from '../../config/constants.js';
+import { CATEGORY_DISPLAY_NAMES, CATEGORY_METADATA, CATEGORY_VOTE_RULE_LABELS, SCHEMA_VERSION_2026 } from '../../config/constants.js';
 import { appState } from '../../state/appState.js';
 import { saveRemoteConfig, changeSystemPassword } from '../../services/firestoreService.js';
 import { showMessage } from '../modal.js';
@@ -129,6 +129,9 @@ export function renderAdminSettings() {
                         <span class="text-xs font-bold px-2.5 py-0.5 rounded whitespace-nowrap ${totalMax === 100 ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}">총 ${totalMax}점</span>
                         ${!isArchive ? `<button class="add-criterion-btn text-xs font-semibold text-purple-600 hover:text-purple-800 bg-purple-50 px-2 py-1 rounded border border-purple-200 whitespace-nowrap" data-category="${category}">+ 항목 추가</button>` : ''}
                     </div>
+                </div>
+                <div class="mb-3 px-2.5 py-1.5 rounded-lg bg-emerald-50/70 border border-emerald-200 text-xs text-emerald-800 font-medium">
+                    🗳️ 임직원 투표 가산점: <strong>${isArchive ? '1위 10점 / 2위 7점 / 3위 4점 / 4위 1점' : (CATEGORY_VOTE_RULE_LABELS[category] || '')}</strong>
                 </div>
                 <div class="space-y-2">
         `;

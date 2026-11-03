@@ -40,7 +40,8 @@ export function renderResults() {
     const criteria = appState.evaluationCriteria;
     const results = calculateResults(presenters, criteria, appState.allScores, appState.excellentPresenterSelections);
 
-    let introHTML = `<div class="p-4 mb-6 bg-sky-50 border border-sky-200 rounded-xl text-slate-700 text-sm md:text-base"><p>${INTRO_TEXTS.results}</p></div>`;
+    const introText = appState.isArchiveMode() ? (INTRO_TEXTS.results_2025 || INTRO_TEXTS.results) : INTRO_TEXTS.results;
+    let introHTML = `<div class="p-4 mb-6 bg-sky-50 border border-sky-200 rounded-xl text-slate-700 text-sm md:text-base"><p>${introText}</p></div>`;
     let contentHTML = `<div class="grid grid-cols-1 xl:grid-cols-12 gap-8">`;
 
     // 왼쪽: 부문별 훈격 테이블 (7 cols)
