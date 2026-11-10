@@ -1,0 +1,1429 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2026 경영혁신 경진대회 평가 시스템 - 인터랙티브 사용 매뉴얼</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            font-size: 16px;
+        }
+        body {
+            font-family: 'Inter', 'Pretendard', -apple-system, BlinkMacSystemFont, "Malgun Gothic", "맑은 고딕", sans-serif;
+            background: linear-gradient(135deg, #f0f9ff 0%, #f8fafc 50%, #eef2ff 100%);
+            color: #0f172a;
+            font-size: 16px;
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+        /* 경영진 및 외부심사위원 가독성을 위한 최소 폰트 사이즈 14px 강제 보장 */
+        .manual-root,
+        .manual-root * {
+            font-size: max(14px, 0.875rem);
+        }
+        .title-xl { font-size: clamp(24px, 2.2vw, 32px) !important; line-height: 1.25 !important; }
+        .title-lg { font-size: clamp(20px, 1.6vw, 24px) !important; line-height: 1.35 !important; }
+        .title-md { font-size: 18px !important; line-height: 1.4 !important; }
+        .text-body { font-size: 16px !important; line-height: 1.6 !important; }
+        .text-min { font-size: 14px !important; line-height: 1.5 !important; }
+
+        /* 슬라이드 컨테이너 (16:9 와이드 파워포인트 비율 감성) */
+        .slide-deck-frame {
+            min-height: calc(100vh - 148px);
+            display: flex;
+            align-items: stretch;
+        }
+        .step-card {
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            cursor: pointer;
+        }
+        .step-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px -5px rgba(14, 165, 233, 0.12);
+        }
+        .step-card.active-step {
+            border-color: #0284c7 !important;
+            background-color: #f0f9ff !important;
+            box-shadow: 0 8px 20px -4px rgba(2, 132, 199, 0.18);
+        }
+        .sim-window {
+            background: #ffffff;
+            border: 2px solid #cbd5e1;
+            border-radius: 1rem;
+            box-shadow: 0 20px 35px -10px rgba(15, 23, 42, 0.12);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        .pulse-ring {
+            animation: pulseRing 2s infinite;
+        }
+        @keyframes pulseRing {
+            0% { box-shadow: 0 0 0 0 rgba(14, 165, 233, 0.45); }
+            70% { box-shadow: 0 0 0 8px rgba(14, 165, 233, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(14, 165, 233, 0); }
+        }
+        /* 인쇄 시 전체 슬라이드 연속 출력 지원 */
+        @media print {
+            body { background: #ffffff !important; }
+            .no-print { display: none !important; }
+            .slide-deck-frame { min-height: auto !important; page-break-after: always; }
+        }
+    </style>
+</head>
+<body class="manual-root min-h-screen flex flex-col justify-between">
+
+    <!-- 상단 프레젠테이션 헤더 바 -->
+    <header class="no-print bg-white/95 backdrop-blur border-b border-slate-200 px-6 py-3.5 sticky top-0 z-40 shadow-sm">
+        <div class="max-w-[1600px] mx-auto flex flex-wrap items-center justify-between gap-4">
+            <div class="flex items-center gap-3">
+                <span class="bg-sky-600 text-white font-extrabold px-3.5 py-1.5 rounded-lg shadow-sm">PPT SLIDE GUIDE</span>
+                <div>
+                    <h1 class="title-md font-extrabold text-slate-900">2026 경영혁신 경진대회 평가 시스템 사용 매뉴얼</h1>
+                </div>
+            </div>
+
+            <!-- 대상별 슬라이드 필터 탭 -->
+            <div class="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200 gap-1">
+                <button type="button" data-filter="all" class="filter-tab-btn bg-white text-sky-700 shadow-sm font-bold px-4 py-1.5 rounded-lg transition">
+                    전체 슬라이드 (10)
+                </button>
+                <button type="button" data-filter="evaluator" class="filter-tab-btn text-slate-700 hover:text-slate-900 font-bold px-4 py-1.5 rounded-lg transition">
+                    ⚖️ 심사위원(평가자) 가이드 (6)
+                </button>
+                <button type="button" data-filter="admin" class="filter-tab-btn text-slate-700 hover:text-slate-900 font-bold px-4 py-1.5 rounded-lg transition">
+                    👑 관리자(운영진) 가이드 (6)
+                </button>
+            </div>
+
+            <!-- 우측 유틸리티 버튼 -->
+            <div class="flex items-center gap-2">
+                <select id="slide-jump-select" class="bg-white border-2 border-slate-300 hover:border-sky-500 text-slate-800 font-bold px-3 py-1.5 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 cursor-pointer">
+                </select>
+                <button type="button" id="fullscreen-btn" class="bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold px-3.5 py-1.5 rounded-lg border border-slate-300 transition">
+                    ⛶ 전체화면
+                </button>
+                <a href="./index.html" class="bg-sky-600 hover:bg-sky-700 text-white font-bold px-4 py-1.5 rounded-lg shadow-sm transition flex items-center gap-1.5">
+                    <span>평가 시스템 바로가기 ➔</span>
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <!-- 메인 파워포인트 슬라이드 캔버스 (좌측: 주요 기능 및 사용 방법 / 우측: 인터랙티브 시스템 화면) -->
+    <main class="flex-1 max-w-[1600px] w-full mx-auto px-4 md:px-8 py-5 flex flex-col">
+        <div id="slide-container" class="slide-deck-frame bg-white rounded-3xl shadow-xl border border-slate-200/90 overflow-hidden grid grid-cols-1 lg:grid-cols-12">
+            <!-- JS에 의해 좌측(5컬럼) + 우측(7컬럼) 렌더링 -->
+        </div>
+    </main>
+
+    <!-- 하단 슬라이드 네비게이션 컨트롤 바 -->
+    <footer class="no-print bg-white border-t border-slate-200 px-6 py-3 sticky bottom-0 z-40">
+        <div class="max-w-[1600px] mx-auto flex flex-wrap items-center justify-between gap-4">
+            <button type="button" id="prev-slide-btn" class="bg-slate-100 hover:bg-slate-200 disabled:opacity-40 disabled:cursor-not-allowed text-slate-800 font-bold px-5 py-2 rounded-xl border border-slate-300 transition flex items-center gap-2">
+                <span>◀ 이전 슬라이드</span>
+            </button>
+
+            <div class="flex flex-col items-center gap-1.5">
+                <div id="slide-dots" class="flex items-center gap-2"></div>
+                <div class="text-slate-500 font-semibold">
+                    <span id="slide-counter-text" class="text-sky-700 font-extrabold">Slide 1 / 10</span>
+                    <span class="mx-2 text-slate-300">|</span>
+                    <span>키보드 <kbd class="px-2 py-0.5 bg-slate-100 border border-slate-300 rounded text-slate-700 font-bold">←</kbd> <kbd class="px-2 py-0.5 bg-slate-100 border border-slate-300 rounded text-slate-700 font-bold">→</kbd> 방향키로 이동 가능</span>
+                </div>
+            </div>
+
+            <button type="button" id="next-slide-btn" class="bg-sky-600 hover:bg-sky-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold px-5 py-2 rounded-xl shadow-md transition flex items-center gap-2">
+                <span>다음 슬라이드 ▶</span>
+            </button>
+        </div>
+    </footer>
+
+    <script>
+        /**
+         * 10개 파워포인트 슬라이드 데이터 및 인터랙티브 상태 정의
+         */
+        const SLIDES = [
+            {
+                id: 'overview',
+                role: 'common',
+                roleBadge: '공통 핵심 개요',
+                roleBadgeClass: 'bg-sky-100 text-sky-800 border-sky-300',
+                slideNo: 'SLIDE 01',
+                title: '2026 경영혁신 경진대회 평가 시스템 개요',
+                subtitle: '지원(Support)·기술(Technology) 2개 부문 이분화 및 AI 활용도 평가 도입',
+                steps: [
+                    {
+                        title: '2개 부문 체제 개편 (총 16개 발표 과제)',
+                        desc: '기존 4개 부문을 직무 특성에 맞춰 [🏢 지원 부문(영업·서비스·경영·생산/품질, 10건)]과 [🔬 기술 부문(연구·수리/IT·전기·전자, 6건)]으로 명확히 이분화했습니다.'
+                    },
+                    {
+                        title: '6대 평가항목 (100점 만점) + AI 활용도(15점) 반영',
+                        desc: '양 부문 모두 6개 핵심 평가항목(총 100점)으로 구성되며, 2026년 핵심 아젠다인 [AI 및 디지털/데이터 기술 활용도(15점)]가 필수 평가항목으로 신설되었습니다.'
+                    },
+                    {
+                        title: '최종 점수 합산 (110점 만점) 및 16개 전 과제 시상',
+                        desc: '심사위원 평균 점수(100점)와 임직원 온라인 투표 환산 가산점(최대 10점)을 합산하여 최우수·우수·장려·특별상(총 16개 슬롯, 790만 원)을 수여합니다.'
+                    }
+                ],
+                tip: '💡 우측 화면에서 [🏢 지원 부문]과 [🔬 기술 부문] 버튼을 클릭하여 부문별 평가항목과 포상 기준을 직접 비교해 보세요.'
+            },
+            {
+                id: 'eval-login',
+                role: 'evaluator',
+                roleBadge: '심사위원(평가자) 필수 1단계',
+                roleBadgeClass: 'bg-indigo-100 text-indigo-800 border-indigo-300',
+                slideNo: 'SLIDE 02',
+                title: '시스템 접속, 로그인 및 발표 요약문집 열람',
+                subtitle: '역할 선택 후 성명·비밀번호 입력 및 발표 요약문집 PDF 원클릭 조회',
+                steps: [
+                    {
+                        title: '① 상단 역할 탭에서 [평가자] 선택',
+                        desc: '로그인 화면 상단의 3개 역할 탭(평가자 / 투표자 / 관리자) 중 기본 선택된 [평가자] 탭을 확인합니다.'
+                    },
+                    {
+                        title: '② 성명(실명) 및 평가자 비밀번호 입력',
+                        desc: '성명란에 심사위원 본인의 성명(예: 홍길동, 2자 이상)을 입력하고, 안내받은 평가자 공통 비밀번호를 입력한 뒤 [로그인]을 클릭합니다.'
+                    },
+                    {
+                        title: '③ 발표 요약문집 PDF 즉시 열람',
+                        desc: '로그인 창 하단의 [2026년 경영혁신경진대회 식순 및 발표 요약문집] 링크를 클릭하면 별도 창에서 전체 발표 자료집(PDF)을 함께 보며 심사할 수 있습니다.'
+                    }
+                ],
+                tip: '💡 재로그인 시에도 처음 입력했던 동일한 성명(예: 홍길동)으로 로그인하시면 기존 채점 기록이 100% 그대로 이어집니다.'
+            },
+            {
+                id: 'eval-scoring',
+                role: 'evaluator',
+                roleBadge: '심사위원(평가자) 필수 2단계',
+                roleBadgeClass: 'bg-indigo-100 text-indigo-800 border-indigo-300',
+                slideNo: 'SLIDE 03',
+                title: '부문별 평가표 채점 및 키보드 빠른 이동',
+                subtitle: '항목별 배점 한도 자동 검증, 고정(Sticky) 헤더 및 엑셀형 방향키 이동 지원',
+                steps: [
+                    {
+                        title: '① [🏢 지원 부문] / [🔬 기술 부문] 탭 전환',
+                        desc: '상단 네비게이션 바에서 현재 발표가 진행 중인 부문을 클릭하면 해당 부문의 발표자 명단과 맞춤형 6대 평가항목 표가 표시됩니다.'
+                    },
+                    {
+                        title: '② 배점 한도 내 점수 입력 (초과 입력 자동 보정)',
+                        desc: '각 입력칸에 안내된 배점 범위(0~15점 또는 0~25점) 내에서 점수를 입력합니다. 만점을 초과하여 입력해도 시스템이 자동으로 최대 배점으로 안전하게 보정합니다.'
+                    },
+                    {
+                        title: '③ 키보드 방향키(↑·↓·←·→) 및 Enter 이동',
+                        desc: '마우스 클릭 없이도 키보드 상하좌우 방향키와 Enter 키만으로 다음 평가항목이나 옆 발표자 칸으로 빠르게 이동하며 채점할 수 있습니다.'
+                    },
+                    {
+                        title: '④ 좌측 평가항목 고정(불투명 Sticky) 및 실시간 합계',
+                        desc: '발표 과제가 많아 우측으로 스크롤하더라도 좌측 평가항목 설명 열은 겹침 없이 선명하게 고정되며, 하단 [총점] 행에 100점 만점 합계가 즉시 계산됩니다.'
+                    }
+                ],
+                tip: '💡 우측 인터랙티브 평가표에 직접 숫자를 입력해 보거나 [샘플 점수 자동 입력] 버튼을 눌러 총점 합산과 만점 자동 보정을 체험해 보세요!'
+            },
+            {
+                id: 'eval-autosave',
+                role: 'evaluator',
+                roleBadge: '심사위원(평가자) 필수 3단계',
+                roleBadgeClass: 'bg-indigo-100 text-indigo-800 border-indigo-300',
+                slideNo: 'SLIDE 04',
+                title: '실시간 자동저장, 심사평 작성 및 이어하기',
+                subtitle: '별도 저장 버튼 없이 클라우드 자동 동기화 및 로그아웃 시 즉시 안전 보존',
+                steps: [
+                    {
+                        title: '① 실시간 자동저장 상태 배지 확인',
+                        desc: '점수나 심사평을 입력하면 상단 배지가 [⏳ 자동 저장 중...]에서 [✓ 모든 변경사항 저장됨]으로 바뀌며 클라우드 DB에 즉시 기록됩니다.'
+                    },
+                    {
+                        title: '② 발표자별 심사평(코멘트) 작성',
+                        desc: '평가표 하단 [발표자별 심사평 작성] 영역에 강점이나 개선 의견을 자유롭게 기록할 수 있습니다. (선택 사항이며 실시간 자동저장됨)'
+                    },
+                    {
+                        title: '③ [로그아웃] 클릭 시 미저장 데이터 즉시 플러시(Flush)',
+                        desc: '휴식 시간 등에 상단 주황색 [로그아웃] 버튼을 클릭하면, 입력 직후 대기 중이던 마지막 점수까지 모두 서버에 저장 완료한 후 안전하게 로그아웃됩니다.'
+                    },
+                    {
+                        title: '④ 재로그인 시 기존 평가 데이터 100% 복원',
+                        desc: '다시 동일한 성명으로 로그인하면 이전에 입력했던 점수와 심사평이 빈칸 없이 그대로 불러와져 이어서 심사를 진행할 수 있습니다.'
+                    }
+                ],
+                tip: '💡 우측 화면에서 [로그아웃 후 재로그인 복원 시연] 버튼을 클릭하여 점수 보존 프로세스를 직접 확인해 보세요.'
+            },
+            {
+                id: 'eval-submit-radar',
+                role: 'evaluator',
+                roleBadge: '심사위원(평가자) 필수 4단계',
+                roleBadgeClass: 'bg-indigo-100 text-indigo-800 border-indigo-300',
+                slideNo: 'SLIDE 05',
+                title: '부문별 최종 제출 및 종합 결과·역량 분석 열람',
+                subtitle: '누락 항목 검증 후 최종 제출 확정 및 6각형 레이더 역량 차트 비교',
+                steps: [
+                    {
+                        title: '① [최종 제출] 클릭 및 미입력 항목 자동 검증',
+                        desc: '부문 내 모든 발표자의 채점을 마친 후 우측 상단 초록색 [최종 제출] 버튼을 클릭합니다. 빈칸이 하나라도 있으면 알림창이 안내하여 누락을 방지합니다.'
+                    },
+                    {
+                        title: '② 제출 완료 후 수정 잠금(Read-Only) 보호',
+                        desc: '확인 모달에서 [확인]을 누르면 해당 부문이 [제출 완료] 상태로 전환되며, 점수 오수정을 막기 위해 입력칸이 안전하게 잠깁니다.'
+                    },
+                    {
+                        title: '③ [종합 결과] 및 [📊 역량 분석] 탭 실시간 조회',
+                        desc: '심사위원도 상단 [종합 결과] 탭에서 전체 심사위원 평균 순위를 확인하고, [📊 역량 분석] 탭에서 발표자별 6대 항목 강·약점 레이더 차트를 비교할 수 있습니다.'
+                    }
+                ],
+                tip: '💡 우측 화면에서 [📊 역량 분석 미리보기] 탭을 누르고 발표자를 변경해 보면서 6각형 역량 차트를 체험해 보세요.'
+            },
+            {
+                id: 'admin-dashboard',
+                role: 'admin',
+                roleBadge: '관리자(운영진) 1단계',
+                roleBadgeClass: 'bg-purple-100 text-purple-800 border-purple-300',
+                slideNo: 'SLIDE 06',
+                title: '관리자 실시간 대시보드 및 컨트롤 툴바',
+                subtitle: '심사위원 채점 진행률·투표율 모니터링 및 백업·시뮬레이션·아카이브 제어',
+                steps: [
+                    {
+                        title: '① 실시간 진행률 대시보드 (평가자 & 투표자 현황)',
+                        desc: '관리자 로그인 시 화면 상단에 각 심사위원의 부문별 제출 상태(지원✓ / 기술✓)와 임직원 투표 참여율(%)이 실시간 프로그레스 바로 표시됩니다.'
+                    },
+                    {
+                        title: '② 관리자 전용 7대 컨트롤 버튼 (심사위원 화면에서는 숨김)',
+                        desc: '[가상 평가 시뮬레이션], [CSV 저장], [DB 백업(JSON)], [DB 복원], [보고서 인쇄], [시뮬레이션 초기화], [전체 데이터 초기화] 버튼이 관리자에게만 제공됩니다.'
+                    },
+                    {
+                        title: '③ 대회 연도 전환 (2026년 진행 중 ↔ 2025년 아카이브)',
+                        desc: '좌측 상단 연도 선택 드롭다운으로 2025년 과거 대회 기록(4개 부문 체제)을 언제든 조회 전용(Read-Only)으로 열람하고 즉시 2026년으로 복귀할 수 있습니다.'
+                    }
+                ],
+                tip: '💡 우측 관리자 툴바에서 각 기능 버튼을 클릭해 보거나 [+ 가상 시뮬레이션 실행]을 눌러 대시보드 변화를 체험해 보세요.'
+            },
+            {
+                id: 'admin-voting',
+                role: 'admin',
+                roleBadge: '관리자(운영진) 2단계',
+                roleBadgeClass: 'bg-purple-100 text-purple-800 border-purple-300',
+                slideNo: 'SLIDE 07',
+                title: '실시간 투표 현황 및 부문별 차등 가산점 집계',
+                subtitle: '지원 부문(10~1점, 1점 간격) · 기술 부문(10~0점, 2점 간격) 자동 환산',
+                steps: [
+                    {
+                        title: '① 지원 부문(10건) 투표 가산점: 10점 ~ 1점 (1점씩 등분)',
+                        desc: '지원 부문은 10개 과제의 득표 순위에 따라 1위 10점, 2위 9점, 3위 8점 … 10위 1점까지 1점 간격으로 총 10단계 가산점이 자동 부여됩니다.'
+                    },
+                    {
+                        title: '② 기술 부문(6건) 투표 가산점: 10점 ~ 0점 (2점씩 등분)',
+                        desc: '기술 부문은 6개 과제의 득표 순위에 따라 1위 10점, 2위 8점, 3위 6점, 4위 4점, 5위 2점, 6위 0점으로 2점씩 차등 배분됩니다.'
+                    },
+                    {
+                        title: '③ 동점자 공동 순위 처리 및 투표자 세션 잠금 해제',
+                        desc: '득표수가 같으면 동일한 순위 점수를 부여하며, 다음 순위는 동점 인원만큼 건너뜁니다. 기기 변경으로 재접속이 막힌 투표자는 [투표자 세션 전체 초기화]로 즉시 해제합니다.'
+                    }
+                ],
+                tip: '💡 우측 화면에서 부문 스위치를 전환하고 [+1표 추가] 버튼을 클릭하여 순위 변동과 가산점 자동 환산을 직접 확인해 보세요!'
+            },
+            {
+                id: 'admin-final-awards',
+                role: 'admin',
+                roleBadge: '관리자(운영진) 3단계',
+                roleBadgeClass: 'bg-purple-100 text-purple-800 border-purple-300',
+                slideNo: 'SLIDE 08',
+                title: '최종 결과 산출 및 16개 포상(훈격)·특별상 지정',
+                subtitle: '본상(최우수·우수·장려) 및 후원 특별상 드롭다운 지정·실시간 시상식 연동',
+                steps: [
+                    {
+                        title: '① 심사위원 평균(100점) + 투표 가산점(10점) 자동 합산',
+                        desc: '[최종 결과] 탭에서 평가 점수와 투표 환산 점수를 더한 총점(110점 만점) 순으로 정렬되며, 순위에 맞춰 16개 기본 훈격이 자동 배치됩니다.'
+                    },
+                    {
+                        title: '② 지원 부문(10건) & 기술 부문(6건) 훈격 테이블',
+                        desc: '• 지원(10건): 최우수(1), 우수(2), 장려(3), 특별상 4건(대한상공회의소 센터장, 시앤피컨설팅, 미래교육연구소×2)\n• 기술(6건): 최우수(1), 우수(1), 장려(2), 특별상 2건(대한상공회의소 단장, 한국AI워크랩 대표)'
+                    },
+                    {
+                        title: '③ 훈격 드롭다운 수동 변경 및 [지정사항 저장]',
+                        desc: '후원 기관별 특별상 대상자를 조정해야 할 때 테이블의 [훈격 선택 드롭다운]에서 원하는 특별상을 선택한 뒤 [훈격/특별상 지정사항 저장]을 누르면 시상식 화면에 즉시 반영됩니다.'
+                    }
+                ],
+                tip: '💡 우측 테이블에서 각 발표자의 훈격 드롭다운을 변경하고 [💾 훈격 지정사항 저장]을 눌러 실시간 반영을 체험해 보세요.'
+            },
+            {
+                id: 'admin-ceremony',
+                role: 'admin',
+                roleBadge: '관리자(운영진) 4단계',
+                roleBadgeClass: 'bg-amber-100 text-amber-900 border-amber-400',
+                slideNo: 'SLIDE 09',
+                title: '인터랙티브 시상식 연출 (4단계 공개 & 듀얼 스크린)',
+                subtitle: '특별상 ➔ 장려상 ➔ 우수상 ➔ 최우수상 순차 공개 및 폭죽·팡파레 효과',
+                steps: [
+                    {
+                        title: '① [새 창으로 시상식 화면 열기]로 단상 스크린 투사',
+                        desc: '[🏆 시상식] 탭 우측 상단의 [새 창으로 시상식 화면 열기]를 클릭하면 단상 프로젝터용 전용 창(ceremony.html)이 열리며, 관리자 화면 조작과 실시간 동기화됩니다.'
+                    },
+                    {
+                        title: '② 긴장감을 높이는 4단계 순차 공개 (Step 1 ~ Step 4)',
+                        desc: '[다음 수상자 공개 ➔] 클릭 시 ① 특별상 전원 공개 ➔ ② 장려상 전원 공개 ➔ ③ 우수상 공개(지원 2팀 / 기술 1팀) ➔ ④ 대망의 최우수상 공개 순으로 진행됩니다.'
+                    },
+                    {
+                        title: '③ 사운드 이펙트(드럼롤·팡파레) 및 꽃가루 폭죽 연출',
+                        desc: '각 단계 공개 시 경쾌한 팡파레 사운드와 골드·스카이 폭죽 애니메이션이 자동 재생되며, [🔄 순서 초기화]로 언제든 리허설 및 재진행이 가능합니다.'
+                    }
+                ],
+                tip: '💡 우측 미니 시상식 전광판에서 [🎉 다음 수상자 공개 ➔] 버튼을 연속 클릭하여 4단계 드라마틱 공개 연출을 직접 체험해 보세요!'
+            },
+            {
+                id: 'admin-settings',
+                role: 'admin',
+                roleBadge: '관리자(운영진) 5단계',
+                roleBadgeClass: 'bg-purple-100 text-purple-800 border-purple-300',
+                slideNo: 'SLIDE 10',
+                title: '대회 설정 관리 (PDF 링크·발표자·배점·보안)',
+                subtitle: '발표 요약문집 URL 실시간 연동, 과제 명단·배점(100점 검증) 및 비밀번호 관리',
+                steps: [
+                    {
+                        title: '① 대회 기본 정보 및 발표 요약문집 PDF 링크 연동',
+                        desc: '[⚙️ 설정 관리] 탭에서 [발표 요약문집 PDF 링크 URL]을 업데이트하고 저장하면, 로그인 창 하단의 요약문집 다운로드 링크 주소가 즉시 새 URL로 자동 매칭됩니다.'
+                    },
+                    {
+                        title: '② 부문별 발표자(과제) 추가·삭제·명칭 수정',
+                        desc: '지원 부문 및 기술 부문의 발표자 순서, 소속/성명 텍스트를 자유롭게 수정하거나 [+ 발표자 추가] / [삭제] 버튼으로 인원을 조정할 수 있습니다.'
+                    },
+                    {
+                        title: '③ 부문별 배점 기준 편집 (총합 100점 실시간 검증)',
+                        desc: '평가항목 배점을 수정하면 우측 상단 배지가 실시간 합계를 계산하며, 총합이 정확히 100점일 때만 초록색([총 100점])으로 활성화되어 오설정을 방지합니다.'
+                    },
+                    {
+                        title: '④ 관리자 및 심사위원 비밀번호 실시간 변경 (SHA-256)',
+                        desc: '하단 보안 섹션에서 관리자 또는 심사위원 비밀번호를 변경하면 SHA-256 해시로 즉시 암호화 저장되어 다음 로그인부터 적용됩니다.'
+                    }
+                ],
+                tip: '💡 우측 설정 시뮬레이터에서 PDF 링크나 배점 숫자를 변경해 보고 [설정 저장 및 전체 적용] 버튼을 클릭해 보세요!'
+            }
+        ];
+
+        // 슬라이드 필터 및 인터랙티브 상태
+        let currentFilter = 'all';
+        let filteredSlideIndices = SLIDES.map((_, i) => i);
+        let currentPos = 0; // filteredSlideIndices 내 인덱스
+        let activeStepIndex = 0;
+
+        // 우측 인터랙티브 모의 화면 상태
+        const simState = {
+            overviewCat: 'support',
+            loginRole: 'evaluator',
+            loginName: '홍길동',
+            loginSuccess: false,
+            scoringCat: 'support',
+            scores: {
+                p1: [14, 14, 15, 23, 18, 9],
+                p2: [13, 12, 13, 21, 17, 8],
+                p3: [15, 14, 14, 24, 19, 10]
+            },
+            autosaveStatus: 'saved',
+            commentText: '생성형 AI를 활용한 현장 품질 데이터 자동 분석 접근이 매우 돋보입니다.',
+            sessionDemoStep: 'logged_in', // logged_in -> logged_out -> restored
+            submitViewMode: 'table', // table | radar
+            isSubmitted: false,
+            selectedRadarPresenter: 0,
+            adminToolbarMsg: '상단 관리자 버튼을 클릭하면 해당 기능의 상세 동작이 여기에 표시됩니다.',
+            adminSimRunning: false,
+            adminArchiveYear: '2026',
+            voteCat: 'support',
+            supportVotes: [42, 38, 35, 31, 28, 25, 21, 18, 14, 10],
+            techVotes: [45, 39, 32, 26, 19, 12],
+            finalAwards: [
+                { name: '[모빌리티] 김윤수 책임', eval: 94.5, vote: 10, award: '최우수' },
+                { name: '[에이텍] 안상균 책임', eval: 92.0, vote: 9, award: '우수' },
+                { name: '[컴퓨터] 장성대 선임', eval: 90.5, vote: 8, award: '우수' },
+                { name: '[에이텍] 조경준 책임', eval: 88.5, vote: 7, award: '장려' },
+                { name: '[모빌리티] 조민지 선임', eval: 87.0, vote: 6, award: '특별상_대한상공회의소 센터장' },
+                { name: '[모빌리티] 정수연 선임', eval: 85.5, vote: 5, award: '특별상_시앤피컨설팅' }
+            ],
+            finalSavedToast: false,
+            ceremonyStep: 0, // 0~4
+            settingsDocUrl: 'https://drive.google.com/file/d/1wDt99bZpHNyYt5b2aZmA3HNyz-lfrE0f/view?usp=sharing',
+            settingsCriteriaMax: [15, 15, 15, 25, 20, 10],
+            settingsSavedToast: false
+        };
+
+        function getActiveSlide() {
+            const realIdx = filteredSlideIndices[currentPos] ?? 0;
+            return { slide: SLIDES[realIdx], realIdx };
+        }
+
+        function updateFilter(newFilter) {
+            currentFilter = newFilter;
+            if (newFilter === 'all') {
+                filteredSlideIndices = SLIDES.map((_, i) => i);
+            } else if (newFilter === 'evaluator') {
+                filteredSlideIndices = SLIDES
+                    .map((s, i) => (s.role === 'common' || s.role === 'evaluator' ? i : -1))
+                    .filter(i => i !== -1);
+            } else if (newFilter === 'admin') {
+                filteredSlideIndices = SLIDES
+                    .map((s, i) => (s.role === 'common' || s.role === 'admin' ? i : -1))
+                    .filter(i => i !== -1);
+            }
+            currentPos = 0;
+            activeStepIndex = 0;
+
+            document.querySelectorAll('.filter-tab-btn').forEach(btn => {
+                if (btn.dataset.filter === newFilter) {
+                    btn.className = 'filter-tab-btn bg-white text-sky-700 shadow-sm font-bold px-4 py-1.5 rounded-lg transition';
+                } else {
+                    btn.className = 'filter-tab-btn text-slate-700 hover:text-slate-900 font-bold px-4 py-1.5 rounded-lg transition';
+                }
+            });
+
+            renderSlide();
+        }
+
+        function renderInteractiveRightPane(slide) {
+            switch (slide.id) {
+                case 'overview': {
+                    const isSupport = simState.overviewCat === 'support';
+                    const criteriaList = isSupport
+                        ? [
+                            { name: '1. 주제 선정 및 경영전략 연계성', max: 15, ai: false },
+                            { name: '2. 원인 분석 및 개선안 창의성', max: 15, ai: false },
+                            { name: '3. AI 및 디지털 도구 활용도', max: 15, ai: true },
+                            { name: '4. 개선 성과 및 목표 달성도', max: 25, ai: false },
+                            { name: '5. 표준화 및 사후관리(현장 정착)', max: 20, ai: false },
+                            { name: '6. 발표 완성도 및 추진 노력도', max: 10, ai: false }
+                        ]
+                        : [
+                            { name: '1. 과제 선정 타당성 및 기술적 난이도', max: 15, ai: false },
+                            { name: '2. 문제 해결 로직 및 데이터 분석 적정성', max: 20, ai: false },
+                            { name: '3. AI·데이터 기술 접목 및 활용도', max: 15, ai: true },
+                            { name: '4. 기술/솔루션 혁신성 및 완성도', max: 20, ai: false },
+                            { name: '5. 경영 기여도 및 현장 파급효과', max: 20, ai: false },
+                            { name: '6. 확장성(범용성) 및 발표력', max: 10, ai: false }
+                        ];
+                    const awardSummary = isSupport
+                        ? [
+                            { tier: '최우수상 (1팀)', desc: '상금 600,000원 (경영혁신실)' },
+                            { tier: '우수상 (2팀)', desc: '각 400,000원 × 2팀 = 800,000원' },
+                            { tier: '장려상 (3팀)', desc: '각 200,000원 × 3팀 = 600,000원' },
+                            { tier: '특별상 (4팀)', desc: '대한상공회의소 센터장(50만) / 시앤피컨설팅 / 미래교육연구소(×2)' }
+                        ]
+                        : [
+                            { tier: '최우수상 (1팀)', desc: '상금 1,000,000원 (경영혁신실)' },
+                            { tier: '우수상 (1팀)', desc: '상금 600,000원 (경영혁신실)' },
+                            { tier: '장려상 (2팀)', desc: '각 400,000원 × 2팀 = 800,000원' },
+                            { tier: '특별상 (2팀)', desc: '대한상공회의소 단장(100만) / 한국AI워크랩 대표(상품 50만)' }
+                        ];
+
+                    return `
+                        <div class="p-5 space-y-4">
+                            <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-3">
+                                <div class="flex gap-2">
+                                    <button type="button" onclick="window.manualApp.setOverviewCat('support')" class="px-4 py-2 rounded-xl font-extrabold transition ${isSupport ? 'bg-sky-600 text-white shadow-md' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}">
+                                        🏢 지원 부문 (10건)
+                                    </button>
+                                    <button type="button" onclick="window.manualApp.setOverviewCat('technology')" class="px-4 py-2 rounded-xl font-extrabold transition ${!isSupport ? 'bg-indigo-600 text-white shadow-md' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}">
+                                        🔬 기술 부문 (6건)
+                                    </button>
+                                </div>
+                                <span class="px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 font-bold">
+                                    ${isSupport ? '직무: 영업·서비스·경영·생산(품질)' : '직무: 연구·수리(IT·전기·전자 등)'}
+                                </span>
+                            </div>
+
+                            <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                                <div class="bg-slate-50 rounded-2xl p-4 border border-slate-200">
+                                    <div class="flex justify-between items-center mb-3">
+                                        <h4 class="font-extrabold text-slate-900">📋 6대 평가항목 (총 100점)</h4>
+                                        <span class="bg-indigo-600 text-white font-bold px-2.5 py-0.5 rounded-lg">AI 15점 포함</span>
+                                    </div>
+                                    <div class="space-y-2">
+                                        ${criteriaList.map(c => `
+                                            <div class="p-2.5 rounded-xl border ${c.ai ? 'bg-indigo-50 border-indigo-300' : 'bg-white border-slate-200'} flex items-center justify-between gap-2">
+                                                <div class="font-bold ${c.ai ? 'text-indigo-900' : 'text-slate-800'} flex items-center gap-1.5">
+                                                    <span>${c.name}</span>
+                                                    ${c.ai ? '<span class="px-2 py-0.5 rounded bg-indigo-600 text-white font-extrabold">AI 핵심</span>' : ''}
+                                                </div>
+                                                <span class="font-black ${c.ai ? 'text-indigo-700' : 'text-sky-700'} whitespace-nowrap">${c.max}점</span>
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                </div>
+
+                                <div class="space-y-3">
+                                    <div class="bg-amber-50/70 rounded-2xl p-4 border border-amber-200">
+                                        <h4 class="font-extrabold text-amber-950 mb-2">🏆 ${isSupport ? '지원 부문 (총 10팀 전원 수상)' : '기술 부문 (총 6팀 전원 수상)'}</h4>
+                                        <div class="space-y-2">
+                                            ${awardSummary.map(a => `
+                                                <div class="bg-white p-2.5 rounded-xl border border-amber-200/80 flex flex-col">
+                                                    <span class="font-extrabold text-slate-900">${a.tier}</span>
+                                                    <span class="text-slate-600 font-medium">${a.desc}</span>
+                                                </div>
+                                            `).join('')}
+                                        </div>
+                                    </div>
+                                    <div class="bg-sky-50 rounded-2xl p-3.5 border border-sky-200 flex items-center justify-between">
+                                        <div>
+                                            <div class="font-extrabold text-sky-950">🗳️ 임직원 온라인 투표 가산점 (최대 10점)</div>
+                                            <div class="text-sky-800 font-semibold">${isSupport ? '1위 10점 ~ 10위 1점 (1점씩 균등 차등)' : '1위 10점 ~ 6위 0점 (2점씩 균등 차등)'}</div>
+                                        </div>
+                                        <span class="font-black text-sky-700 bg-white px-3 py-1.5 rounded-xl border border-sky-200">총 110점 만점</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                case 'eval-login': {
+                    const role = simState.loginRole;
+                    return `
+                        <div class="p-6 flex flex-col items-center justify-center bg-slate-50/70 h-full">
+                            <div class="w-full max-w-md bg-white p-6 rounded-2xl shadow-lg border border-slate-200">
+                                <div class="text-center mb-4">
+                                    <span class="font-bold tracking-widest text-sky-600 uppercase bg-sky-50 px-3 py-1 rounded-full">2026 INNOVATION AWARDS</span>
+                                    <h3 class="title-lg font-extrabold text-slate-900 mt-2">경영혁신 경진대회</h3>
+                                    <p class="text-slate-500 font-medium">실시간 온라인 평가 & 투표 시스템</p>
+                                </div>
+
+                                <!-- 역할 탭 -->
+                                <div class="grid grid-cols-3 gap-1.5 mb-4 border border-slate-200 rounded-xl p-1 bg-slate-100">
+                                    <button type="button" onclick="window.manualApp.setLoginRole('evaluator')" class="py-2 px-3 rounded-lg font-bold transition ${role === 'evaluator' ? 'bg-sky-600 text-white shadow' : 'text-slate-700 hover:bg-white'}">평가자</button>
+                                    <button type="button" onclick="window.manualApp.setLoginRole('voter')" class="py-2 px-3 rounded-lg font-bold transition ${role === 'voter' ? 'bg-sky-600 text-white shadow' : 'text-slate-700 hover:bg-white'}">투표자</button>
+                                    <button type="button" onclick="window.manualApp.setLoginRole('admin')" class="py-2 px-3 rounded-lg font-bold transition ${role === 'admin' ? 'bg-sky-600 text-white shadow' : 'text-slate-700 hover:bg-white'}">관리자</button>
+                                </div>
+
+                                <div class="space-y-3">
+                                    <div>
+                                        <label class="block font-bold text-slate-700 mb-1">${role === 'admin' ? '관리자 ID' : '성명'}</label>
+                                        <input type="text" value="${role === 'admin' ? 'admin' : simState.loginName}" oninput="window.manualApp.setLoginName(this.value)" class="w-full px-3.5 py-2 border border-slate-300 rounded-lg font-semibold text-slate-900" placeholder="성명 (예: 홍길동)">
+                                    </div>
+                                    <div>
+                                        <label class="block font-bold text-slate-700 mb-1">${role === 'voter' ? '이메일' : '비밀번호'}</label>
+                                        <input type="${role === 'voter' ? 'email' : 'password'}" value="${role === 'voter' ? 'gildong@atec.kr' : '••••••••'}" class="w-full px-3.5 py-2 border border-slate-300 rounded-lg font-semibold text-slate-900">
+                                    </div>
+                                    <button type="button" onclick="window.manualApp.triggerLoginDemo()" class="w-full py-2.5 px-4 rounded-xl font-extrabold text-white bg-sky-600 hover:bg-sky-700 shadow-md transition">
+                                        로그인 체험하기
+                                    </button>
+                                </div>
+
+                                ${simState.loginSuccess ? `
+                                    <div class="mt-3 p-3 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-900 font-bold text-center">
+                                        ✅ [${role === 'admin' ? '관리자: admin' : `평가자: ${simState.loginName || '홍길동'}`}] 모드로 접속되었습니다!
+                                    </div>
+                                ` : ''}
+
+                                <!-- 요약문집 PDF 링크 -->
+                                <div class="mt-5 pt-4 border-t border-slate-200 text-center">
+                                    <a href="https://drive.google.com/file/d/1wDt99bZpHNyYt5b2aZmA3HNyz-lfrE0f/view?usp=sharing" target="_blank" rel="noopener noreferrer" class="pulse-ring inline-flex items-center font-bold text-sky-700 hover:text-sky-900 bg-sky-50 px-3.5 py-2 rounded-xl border border-sky-200 transition">
+                                        📄 2026년 경영혁신경진대회 식순 및 발표 요약문집 (클릭 시 열람)
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                case 'eval-scoring': {
+                    const criteria = [
+                        { name: '주제 선정 및 경영전략 연계성', max: 15, ai: false },
+                        { name: '원인 분석 및 개선안 창의성', max: 15, ai: false },
+                        { name: 'AI 및 디지털 도구 활용도', max: 15, ai: true },
+                        { name: '개선 성과 및 목표 달성도', max: 25, ai: false },
+                        { name: '표준화 및 사후관리(현장 정착)', max: 20, ai: false },
+                        { name: '발표 완성도 및 추진 노력도', max: 10, ai: false }
+                    ];
+                    const sumP = (arr) => arr.reduce((a, b) => a + (parseInt(b, 10) || 0), 0);
+                    return `
+                        <div class="p-4 space-y-3">
+                            <div class="flex flex-wrap items-center justify-between gap-2 bg-sky-50 p-3 rounded-xl border border-sky-200">
+                                <div class="flex items-center gap-2">
+                                    <span class="font-extrabold text-slate-900">🏢 지원 부문 평가</span>
+                                    <span class="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold">✓ 실시간 자동저장</span>
+                                </div>
+                                <div class="flex gap-2">
+                                    <button type="button" onclick="window.manualApp.fillSampleScores()" class="bg-white hover:bg-sky-100 text-sky-700 border border-sky-300 font-bold px-3 py-1 rounded-lg transition">
+                                        ✨ 샘플 점수 채우기
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="overflow-x-auto border border-slate-200 rounded-xl">
+                                <table class="w-full text-left border-collapse">
+                                    <thead>
+                                        <tr class="bg-slate-100 border-b border-slate-200 text-slate-800">
+                                            <th class="p-3 font-extrabold min-w-[210px] bg-slate-100 sticky left-0 z-10 border-r border-slate-200">평가항목 (좌측 고정)</th>
+                                            <th class="p-3 font-extrabold text-center w-16">배점</th>
+                                            <th class="p-3 font-extrabold text-center min-w-[130px]">#1 [에이텍] 안상균</th>
+                                            <th class="p-3 font-extrabold text-center min-w-[130px]">#2 [에이텍] 조경준</th>
+                                            <th class="p-3 font-extrabold text-center min-w-[130px]">#3 [모빌리티] 김윤수</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-slate-200">
+                                        ${criteria.map((c, idx) => `
+                                            <tr class="hover:bg-slate-50">
+                                                <td class="p-2.5 font-bold bg-white sticky left-0 z-10 border-r border-slate-200 ${c.ai ? 'border-l-4 border-l-indigo-500 text-indigo-950' : 'text-slate-900'}">
+                                                    <div class="flex items-center gap-1.5">
+                                                        <span>${c.name}</span>
+                                                        ${c.ai ? '<span class="px-2 py-0.5 rounded bg-indigo-100 text-indigo-800 font-extrabold">AI 활용</span>' : ''}
+                                                    </div>
+                                                </td>
+                                                <td class="p-2.5 text-center font-extrabold text-slate-700">${c.max}</td>
+                                                ${['p1', 'p2', 'p3'].map(pKey => `
+                                                    <td class="p-2 text-center">
+                                                        <input type="number" min="0" max="${c.max}" value="${simState.scores[pKey][idx]}"
+                                                            oninput="window.manualApp.updateDemoScore('${pKey}', ${idx}, ${c.max}, this)"
+                                                            class="w-24 text-center font-extrabold px-2 py-1.5 border-2 border-slate-300 rounded-lg focus:border-sky-500 focus:outline-none">
+                                                    </td>
+                                                `).join('')}
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                    <tfoot>
+                                        <tr class="bg-slate-100 border-t-2 border-slate-300 font-extrabold">
+                                            <td class="p-3 bg-slate-100 sticky left-0 z-10 border-r border-slate-200 text-slate-900">총점 (실시간 합산)</td>
+                                            <td class="p-3 text-center text-slate-900">100</td>
+                                            <td class="p-3 text-center text-sky-700">${sumP(simState.scores.p1)}점</td>
+                                            <td class="p-3 text-center text-sky-700">${sumP(simState.scores.p2)}점</td>
+                                            <td class="p-3 text-center text-sky-700">${sumP(simState.scores.p3)}점</td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                            <p class="text-slate-600 font-semibold">
+                                ⌨️ 숫자 칸을 클릭하고 배점보다 큰 숫자(예: 99)를 입력해 보세요. 자동으로 최대 배점으로 보정되며 합계가 즉시 갱신됩니다.
+                            </p>
+                        </div>
+                    `;
+                }
+
+                case 'eval-autosave': {
+                    return `
+                        <div class="p-5 space-y-4">
+                            <div class="flex flex-wrap items-center justify-between gap-2 bg-slate-900 text-white p-4 rounded-2xl">
+                                <div class="flex items-center gap-3">
+                                    <span class="font-extrabold">평가자: 홍길동</span>
+                                    <span class="px-3 py-1 rounded-full font-bold ${simState.autosaveStatus === 'saving' ? 'bg-amber-400 text-slate-950' : 'bg-emerald-500 text-white'}">
+                                        ${simState.autosaveStatus === 'saving' ? '⏳ 클라우드 자동 저장 중...' : '✓ 모든 변경사항 실시간 저장됨'}
+                                    </span>
+                                </div>
+                                <button type="button" onclick="window.manualApp.runLogoutRestoreDemo()" class="bg-orange-500 hover:bg-orange-600 text-white font-extrabold px-4 py-1.5 rounded-xl shadow transition">
+                                    🔄 로그아웃 후 재로그인 복원 시연
+                                </button>
+                            </div>
+
+                            ${simState.sessionDemoStep === 'logged_out' ? `
+                                <div class="p-6 bg-amber-50 border-2 border-amber-300 rounded-2xl text-center space-y-2">
+                                    <div class="title-md font-extrabold text-amber-900">🔒 안전하게 저장 후 로그아웃되었습니다</div>
+                                    <p class="text-amber-800 font-semibold">입력 중이던 점수와 심사평이 서버(Firestore)에 100% 반영되었습니다. 잠시 후 재로그인 화면으로 복원됩니다...</p>
+                                </div>
+                            ` : `
+                                <div class="bg-white border border-slate-200 rounded-2xl p-4 space-y-3">
+                                    <div class="flex items-center justify-between">
+                                        <h4 class="font-extrabold text-slate-900">💬 발표자별 심사평 작성 (실시간 자동저장 체험)</h4>
+                                        ${simState.sessionDemoStep === 'restored' ? '<span class="px-3 py-1 rounded-lg bg-sky-100 text-sky-800 font-extrabold">🎉 재로그인 완료: 기존 데이터 100% 복원됨!</span>' : ''}
+                                    </div>
+                                    <div class="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                                        <label class="block font-bold text-slate-700 mb-1.5">#1 [에이텍] 안상균 책임 (현재 점수: 93점)</label>
+                                        <textarea rows="3" oninput="window.manualApp.updateDemoComment(this.value)" class="w-full p-3 border-2 border-slate-300 rounded-xl font-semibold text-slate-800 focus:border-sky-500 focus:outline-none" placeholder="심사평을 입력하면 즉시 자동 저장됩니다...">${simState.commentText}</textarea>
+                                    </div>
+                                    <div class="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-900 font-semibold">
+                                        ✅ 심사평 텍스트를 수정하면 상단 상태 배지가 <strong>[⏳ 자동 저장 중...] ➔ [✓ 모든 변경사항 실시간 저장됨]</strong>으로 즉시 전환됩니다.
+                                    </div>
+                                </div>
+                            `}
+                        </div>
+                    `;
+                }
+
+                case 'eval-submit-radar': {
+                    const radarProfiles = [
+                        { name: '[모빌리티] 김윤수 책임 (96점)', pts: '150,32 245,86 242,190 150,252 58,190 62,88' },
+                        { name: '[에이텍] 안상균 책임 (93점)', pts: '150,44 232,94 238,185 150,238 68,182 70,95' },
+                        { name: '[컴퓨터] 장성대 선임 (90점)', pts: '150,52 222,102 228,178 150,226 75,176 78,100' }
+                    ];
+                    const activeProfile = radarProfiles[simState.selectedRadarPresenter] || radarProfiles[0];
+
+                    return `
+                        <div class="p-5 space-y-4">
+                            <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-3">
+                                <div class="flex gap-2">
+                                    <button type="button" onclick="window.manualApp.setSubmitViewMode('table')" class="px-4 py-1.5 rounded-xl font-extrabold transition ${simState.submitViewMode === 'table' ? 'bg-sky-600 text-white' : 'bg-slate-100 text-slate-700'}">
+                                        1️⃣ 최종 제출 확인 체험
+                                    </button>
+                                    <button type="button" onclick="window.manualApp.setSubmitViewMode('radar')" class="px-4 py-1.5 rounded-xl font-extrabold transition ${simState.submitViewMode === 'radar' ? 'bg-teal-600 text-white' : 'bg-slate-100 text-slate-700'}">
+                                        2️⃣ 📊 역량 분석 레이더 차트
+                                    </button>
+                                </div>
+                                <button type="button" onclick="window.manualApp.toggleSubmitDemo()" class="px-4 py-1.5 rounded-xl font-extrabold text-white transition ${simState.isSubmitted ? 'bg-slate-500 hover:bg-slate-600' : 'bg-emerald-600 hover:bg-emerald-700 shadow'}">
+                                    ${simState.isSubmitted ? '제출 완료됨 (클릭 시 잠금 해제 체험)' : '최종 제출하기 체험'}
+                                </button>
+                            </div>
+
+                            ${simState.submitViewMode === 'table' ? `
+                                <div class="p-4 rounded-2xl border ${simState.isSubmitted ? 'bg-emerald-50 border-emerald-300' : 'bg-slate-50 border-slate-200'} space-y-3">
+                                    <div class="flex items-center justify-between">
+                                        <span class="font-extrabold text-slate-900">상태: ${simState.isSubmitted ? '🔒 최종 제출 완료 (수정 불가 잠금)' : '✏️ 채점 진행 중 (수정 가능)'}</span>
+                                        <span class="px-3 py-1 rounded-lg font-bold ${simState.isSubmitted ? 'bg-emerald-600 text-white' : 'bg-amber-100 text-amber-800'}">
+                                            ${simState.isSubmitted ? '제출 완료' : '미제출'}
+                                        </span>
+                                    </div>
+                                    <p class="text-slate-700 font-semibold">
+                                        ${simState.isSubmitted
+                                            ? '최종 제출이 완료되어 모든 점수 입력칸이 안전하게 비활성화(Read-Only)되었습니다. 상단 [📊 역량 분석 레이더 차트] 버튼을 눌러 시각화 결과를 확인해 보세요!'
+                                            : '우측 상단 [최종 제출하기 체험] 버튼을 클릭하면 모든 항목 입력 여부를 확인한 뒤 최종 제출 잠금 상태로 전환됩니다.'}
+                                    </p>
+                                </div>
+                            ` : ''}
+
+                            <div class="bg-white border border-slate-200 rounded-2xl p-4 grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
+                                <div class="md:col-span-5 space-y-2">
+                                    <h4 class="font-extrabold text-slate-900">📊 발표자별 6대 핵심 역량 비교</h4>
+                                    <p class="text-slate-600 font-medium">발표자를 선택하면 부문 평균(점선) 대비 해당 과제의 6대 평가항목 달성도(%)가 실시간으로 그려집니다.</p>
+                                    <div class="space-y-1.5 pt-1">
+                                        ${radarProfiles.map((p, idx) => `
+                                            <button type="button" onclick="window.manualApp.selectRadarPresenter(${idx})" class="w-full text-left px-3 py-2 rounded-xl font-bold border transition ${simState.selectedRadarPresenter === idx ? 'bg-teal-50 border-teal-500 text-teal-900' : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'}">
+                                                ${p.name}
+                                            </button>
+                                        `).join('')}
+                                    </div>
+                                </div>
+                                <div class="md:col-span-7 flex justify-center">
+                                    <svg viewBox="0 0 300 280" class="w-full max-w-[300px] h-auto">
+                                        <!-- 육각형 가이드 그리드 -->
+                                        <polygon points="150,20 260,82 260,198 150,260 40,198 40,82" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5"/>
+                                        <polygon points="150,60 225,102 225,178 150,220 75,178 75,102" fill="none" stroke="#cbd5e1" stroke-dasharray="4 4" stroke-width="1.5"/>
+                                        <!-- 부문 평균 폴리곤 -->
+                                        <polygon points="150,55 228,98 220,180 150,225 78,180 75,98" fill="rgba(148, 163, 184, 0.2)" stroke="#64748b" stroke-dasharray="4 3" stroke-width="2"/>
+                                        <!-- 선택 발표자 폴리곤 -->
+                                        <polygon points="${activeProfile.pts}" fill="rgba(13, 148, 136, 0.28)" stroke="#0d9488" stroke-width="3"/>
+                                        <text x="150" y="14" text-anchor="middle" fill="#0f172a" font-weight="bold">전략연계(15)</text>
+                                        <text x="266" y="82" text-anchor="start" fill="#0f172a" font-weight="bold">창의성(15)</text>
+                                        <text x="266" y="206" text-anchor="start" fill="#4338ca" font-weight="bold">AI활용(15)</text>
+                                        <text x="150" y="276" text-anchor="middle" fill="#0f172a" font-weight="bold">성과달성(25)</text>
+                                        <text x="34" y="206" text-anchor="end" fill="#0f172a" font-weight="bold">사후관리(20)</text>
+                                        <text x="34" y="82" text-anchor="end" fill="#0f172a" font-weight="bold">발표력(10)</text>
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                case 'admin-dashboard': {
+                    return `
+                        <div class="p-5 space-y-4">
+                            <!-- 관리자 전용 상단 버튼 바 -->
+                            <div class="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 space-y-2.5">
+                                <div class="flex items-center justify-between">
+                                    <span class="font-extrabold text-slate-800">👑 관리자 전용 상단 툴바 (버튼을 클릭해 보세요)</span>
+                                    <span class="px-2.5 py-0.5 rounded bg-purple-100 text-purple-800 font-bold">평가자 모드에서는 자동 숨김</span>
+                                </div>
+                                <div class="flex flex-wrap gap-1.5">
+                                    <button type="button" onclick="window.manualApp.triggerAdminTool('year')" class="bg-white border-2 border-sky-400 text-sky-900 font-bold px-3 py-1.5 rounded-lg">
+                                        📅 ${simState.adminArchiveYear}년 대회 전환
+                                    </button>
+                                    <button type="button" onclick="window.manualApp.triggerAdminTool('sim')" class="bg-sky-600 hover:bg-sky-700 text-white font-bold px-3 py-1.5 rounded-lg">
+                                        가상 평가 시뮬레이션
+                                    </button>
+                                    <button type="button" onclick="window.manualApp.triggerAdminTool('csv')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3 py-1.5 rounded-lg">
+                                        CSV 저장
+                                    </button>
+                                    <button type="button" onclick="window.manualApp.triggerAdminTool('backup')" class="bg-teal-600 hover:bg-teal-700 text-white font-bold px-3 py-1.5 rounded-lg">
+                                        DB 백업 (JSON)
+                                    </button>
+                                    <button type="button" onclick="window.manualApp.triggerAdminTool('print')" class="bg-slate-700 hover:bg-slate-800 text-white font-bold px-3 py-1.5 rounded-lg">
+                                        보고서 인쇄
+                                    </button>
+                                    <button type="button" onclick="window.manualApp.triggerAdminTool('resetSim')" class="bg-red-600 hover:bg-red-700 text-white font-bold px-3 py-1.5 rounded-lg">
+                                        시뮬레이션 초기화
+                                    </button>
+                                </div>
+                                <div class="p-2.5 bg-sky-50 border border-sky-200 rounded-xl text-sky-950 font-bold">
+                                    💬 ${simState.adminToolbarMsg}
+                                </div>
+                            </div>
+
+                            <!-- 실시간 진행률 대시보드 -->
+                            <div class="bg-white border border-slate-200 rounded-2xl p-4 space-y-3">
+                                <div class="flex justify-between items-center">
+                                    <h4 class="font-extrabold text-slate-900">📡 실시간 평가 & 투표 진행 대시보드</h4>
+                                    <span class="font-bold text-emerald-700">● LIVE 동기화 중</span>
+                                </div>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    <div class="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                                        <div class="flex justify-between font-bold text-slate-800 mb-1">
+                                            <span>⚖️ 심사위원 채점 완료</span>
+                                            <span class="text-sky-700">${simState.adminSimRunning ? '6 / 6명 (100%)' : '4 / 6명 (67%)'}</span>
+                                        </div>
+                                        <div class="w-full bg-slate-200 h-3 rounded-full overflow-hidden">
+                                            <div class="bg-sky-600 h-full transition-all duration-500" style="width: ${simState.adminSimRunning ? '100%' : '67%'}"></div>
+                                        </div>
+                                    </div>
+                                    <div class="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                                        <div class="flex justify-between font-bold text-slate-800 mb-1">
+                                            <span>🗳️ 임직원 온라인 투표 참여율</span>
+                                            <span class="text-emerald-700">${simState.adminSimRunning ? '185 / 200명 (92.5%)' : '142 / 200명 (71.0%)'}</span>
+                                        </div>
+                                        <div class="w-full bg-slate-200 h-3 rounded-full overflow-hidden">
+                                            <div class="bg-emerald-500 h-full transition-all duration-500" style="width: ${simState.adminSimRunning ? '92.5%' : '71%'}"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                case 'admin-voting': {
+                    const isSup = simState.voteCat === 'support';
+                    const votes = isSup ? simState.supportVotes : simState.techVotes;
+                    const scoreMap = isSup ? [10, 9, 8, 7, 6, 5, 4, 3, 2, 1] : [10, 8, 6, 4, 2, 0];
+                    const names = isSup
+                        ? ['[모빌리티] 김윤수', '[에이텍] 안상균', '[컴퓨터] 장성대', '[에이텍] 조경준', '[모빌리티] 조민지', '[모빌리티] 정수연', '[시스템] 양성모', '[네트웍스] 오지환', '[모빌리티] 이수빈', '[네트웍스] 김태훈']
+                        : ['[에이텍] 이정훈', '[모빌리티] 박성민', '[컴퓨터] 최현우', '[에이텍] 정다은', '[모빌리티] 강동원', '[시스템] 윤서준'];
+
+                    const items = names.map((name, idx) => ({ idx, name, count: votes[idx] }))
+                        .sort((a, b) => b.count - a.count);
+
+                    let currentRank = 1;
+                    items.forEach((item, i) => {
+                        if (i > 0 && item.count < items[i - 1].count) currentRank = i + 1;
+                        item.rank = currentRank;
+                        item.bonus = scoreMap[item.rank - 1] ?? 0;
+                    });
+
+                    return `
+                        <div class="p-4 space-y-3">
+                            <div class="flex flex-wrap items-center justify-between gap-2">
+                                <div class="flex gap-2">
+                                    <button type="button" onclick="window.manualApp.setVoteCat('support')" class="px-3.5 py-1.5 rounded-xl font-extrabold transition ${isSup ? 'bg-sky-600 text-white shadow' : 'bg-slate-100 text-slate-700'}">
+                                        🏢 지원 부문 (10점~1점, 1점 간격)
+                                    </button>
+                                    <button type="button" onclick="window.manualApp.setVoteCat('technology')" class="px-3.5 py-1.5 rounded-xl font-extrabold transition ${!isSup ? 'bg-indigo-600 text-white shadow' : 'bg-slate-100 text-slate-700'}">
+                                        🔬 기술 부문 (10점~0점, 2점 간격)
+                                    </button>
+                                </div>
+                                <span class="text-slate-600 font-bold">[+3표] 클릭 시 순위·가산점 실시간 재산출</span>
+                            </div>
+
+                            <div class="overflow-y-auto max-h-[320px] border border-slate-200 rounded-xl">
+                                <table class="w-full text-left border-collapse">
+                                    <thead class="bg-slate-100 sticky top-0 border-b border-slate-200">
+                                        <tr>
+                                            <th class="p-2.5 font-extrabold text-center">득표 순위</th>
+                                            <th class="p-2.5 font-extrabold">발표 과제</th>
+                                            <th class="p-2.5 font-extrabold text-center">득표수</th>
+                                            <th class="p-2.5 font-extrabold text-center">투표 환산 가산점</th>
+                                            <th class="p-2.5 font-extrabold text-center">시뮬레이션</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-slate-200">
+                                        ${items.map(it => `
+                                            <tr class="hover:bg-slate-50">
+                                                <td class="p-2 text-center font-extrabold text-slate-900">${it.rank}위</td>
+                                                <td class="p-2 font-bold text-slate-800">${it.name}</td>
+                                                <td class="p-2 text-center font-extrabold text-sky-700">${it.count}표</td>
+                                                <td class="p-2 text-center">
+                                                    <span class="px-3 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-extrabold">+${it.bonus}점</span>
+                                                </td>
+                                                <td class="p-2 text-center">
+                                                    <button type="button" onclick="window.manualApp.addDemoVote(${it.idx})" class="bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-300 font-bold px-2.5 py-0.5 rounded-lg">
+                                                        +3표 추가
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                case 'admin-final-awards': {
+                    const awardOptions = [
+                        '최우수',
+                        '우수',
+                        '장려',
+                        '특별상_대한상공회의소 센터장',
+                        '특별상_시앤피컨설팅',
+                        '특별상_미래교육연구소'
+                    ];
+                    return `
+                        <div class="p-4 space-y-3">
+                            <div class="flex flex-wrap items-center justify-between gap-2 bg-amber-50 p-3 rounded-xl border border-amber-200">
+                                <span class="font-extrabold text-amber-950">🏆 최종 결과 및 포상(훈격) 지정 테이블 (지원 부문 예시)</span>
+                                <button type="button" onclick="window.manualApp.saveFinalAwardsDemo()" class="bg-amber-600 hover:bg-amber-700 text-white font-extrabold px-4 py-1.5 rounded-xl shadow transition">
+                                    💾 훈격/특별상 지정사항 저장
+                                </button>
+                            </div>
+
+                            ${simState.finalSavedToast ? `
+                                <div class="p-2.5 bg-emerald-50 border border-emerald-300 rounded-xl text-emerald-900 font-extrabold text-center">
+                                    ✅ 변경하신 훈격 및 특별상 지정 내역이 저장되어 [시상식] 탭에 실시간 동기화되었습니다!
+                                </div>
+                            ` : ''}
+
+                            <div class="overflow-x-auto border border-slate-200 rounded-xl">
+                                <table class="w-full text-left border-collapse">
+                                    <thead class="bg-slate-100 border-b border-slate-200">
+                                        <tr>
+                                            <th class="p-2.5 font-extrabold text-center">순위</th>
+                                            <th class="p-2.5 font-extrabold">발표자</th>
+                                            <th class="p-2.5 font-extrabold text-center">심사평균(100)</th>
+                                            <th class="p-2.5 font-extrabold text-center">투표(10)</th>
+                                            <th class="p-2.5 font-extrabold text-center">총점(110)</th>
+                                            <th class="p-2.5 font-extrabold">포상 훈격 선택 (드롭다운 변경 가능)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-slate-200">
+                                        ${simState.finalAwards.map((row, idx) => `
+                                            <tr class="hover:bg-slate-50">
+                                                <td class="p-2.5 text-center font-extrabold text-slate-900">${idx + 1}위</td>
+                                                <td class="p-2.5 font-bold text-slate-800">${row.name}</td>
+                                                <td class="p-2.5 text-center font-semibold text-slate-700">${row.eval.toFixed(1)}</td>
+                                                <td class="p-2.5 text-center font-bold text-emerald-700">+${row.vote}</td>
+                                                <td class="p-2.5 text-center font-extrabold text-sky-700">${(row.eval + row.vote).toFixed(1)}</td>
+                                                <td class="p-2">
+                                                    <select onchange="window.manualApp.changeFinalAward(${idx}, this.value)" class="w-full px-2.5 py-1.5 border-2 border-slate-300 rounded-lg font-bold text-slate-900 bg-white focus:border-amber-500">
+                                                        ${awardOptions.map(opt => `<option value="${opt}" ${row.award === opt ? 'selected' : ''}>${opt}</option>`).join('')}
+                                                    </select>
+                                                </td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                case 'admin-ceremony': {
+                    const step = simState.ceremonyStep;
+                    const stepLabels = [
+                        '대기 중: [다음 수상자 공개 ➔] 버튼을 눌러 특별상부터 공개를 시작하세요.',
+                        'Step 1 공개 완료: 🎁 특별상 (후원기관 특별상 전원 공개)',
+                        'Step 2 공개 완료: 🥉 장려상 전원 공개',
+                        'Step 3 공개 완료: 🥈 우수상 전원 공개 (지원 2팀 / 기술 1팀)',
+                        'Step 4 공개 완료: 👑 대망의 최우수상 공개 완료! (축하 폭죽 연출)'
+                    ];
+                    const cards = [
+                        { stepReq: 4, tier: '👑 최우수상 (상금 60만원)', winner: '[모빌리티] 김윤수 책임 (104.5점)', activeBg: 'bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 border-yellow-300' },
+                        { stepReq: 3, tier: '🥈 우수상 (2팀 × 40만원)', winner: '[에이텍] 안상균 책임 · [컴퓨터] 장성대 선임', activeBg: 'bg-slate-800 text-sky-200 border-sky-400' },
+                        { stepReq: 2, tier: '🥉 장려상 (3팀 × 20만원)', winner: '[에이텍] 조경준 책임 외 2팀', activeBg: 'bg-slate-800 text-emerald-200 border-emerald-400' },
+                        { stepReq: 1, tier: '🎁 특별상 (4팀 · 후원사 시상)', winner: '대한상공회의소 센터장상 · 시앤피컨설팅상 · 미래교육연구소상(×2)', activeBg: 'bg-slate-800 text-purple-200 border-purple-400' }
+                    ];
+
+                    return `
+                        <div class="p-5 bg-slate-950 text-white h-full flex flex-col justify-between space-y-4">
+                            <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-3">
+                                <div>
+                                    <span class="text-amber-400 font-extrabold">🏆 2026 GRAND AWARD CEREMONY</span>
+                                    <div class="font-bold text-slate-300">${stepLabels[step]}</div>
+                                </div>
+                                <div class="flex gap-2">
+                                    <button type="button" onclick="window.manualApp.nextCeremonyStep()" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold px-4 py-2 rounded-xl shadow-lg transition">
+                                        🎉 ${step < 4 ? '다음 수상자 공개 ➔' : '전체 공개 완료'}
+                                    </button>
+                                    <button type="button" onclick="window.manualApp.resetCeremonyStep()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold px-3.5 py-2 rounded-xl border border-slate-700 transition">
+                                        🔄 초기화
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="space-y-2.5">
+                                ${cards.map(c => {
+                                    const revealed = step >= c.stepReq;
+                                    return `
+                                        <div class="p-3.5 rounded-2xl border-2 transition-all duration-300 flex items-center justify-between ${revealed ? c.activeBg : 'bg-slate-900/90 border-slate-800 text-slate-500'}">
+                                            <span class="font-extrabold">${c.tier}</span>
+                                            <span class="font-black">${revealed ? `🎊 ${c.winner}` : '🔒 수상자 공개 대기 중...'}</span>
+                                        </div>
+                                    `;
+                                }).join('')}
+                            </div>
+                        </div>
+                    `;
+                }
+
+                case 'admin-settings': {
+                    const sum = simState.settingsCriteriaMax.reduce((a, b) => a + (parseInt(b, 10) || 0), 0);
+                    const criteriaNames = [
+                        '1. 주제 선정 및 경영전략 연계성',
+                        '2. 원인 분석 및 개선안 창의성',
+                        '3. AI 및 디지털 도구 활용도',
+                        '4. 개선 성과 및 목표 달성도',
+                        '5. 표준화 및 사후관리',
+                        '6. 발표 완성도 및 노력도'
+                    ];
+                    return `
+                        <div class="p-5 space-y-4">
+                            <!-- PDF 링크 설정 연동 -->
+                            <div class="bg-purple-50/70 border border-purple-200 rounded-2xl p-4 space-y-2">
+                                <div class="flex items-center justify-between">
+                                    <h4 class="font-extrabold text-purple-950">1️⃣ 발표 요약문집 PDF 링크 URL (로그인 화면과 실시간 연동)</h4>
+                                    <button type="button" onclick="window.manualApp.saveSettingsDemo()" class="bg-purple-600 hover:bg-purple-700 text-white font-extrabold px-4 py-1.5 rounded-xl shadow transition">
+                                        설정 저장 및 전체 적용
+                                    </button>
+                                </div>
+                                <input type="text" value="${simState.settingsDocUrl}" oninput="window.manualApp.updateSettingsDocUrl(this.value)" class="w-full px-3 py-2 border-2 border-purple-300 rounded-xl font-semibold text-slate-900 bg-white">
+                                <div class="text-purple-900 font-bold">
+                                    🔗 로그인 창 하단 연결 주소: <span class="underline">${simState.settingsDocUrl}</span>
+                                </div>
+                                ${simState.settingsSavedToast ? `
+                                    <div class="p-2 bg-emerald-100 border border-emerald-300 rounded-xl text-emerald-900 font-extrabold text-center">
+                                        ✅ 신규 요약문집 PDF 링크 및 배점 기준이 저장되어 로그인 화면에 즉시 반영되었습니다!
+                                    </div>
+                                ` : ''}
+                            </div>
+
+                            <!-- 배점 합계 100점 검증 -->
+                            <div class="bg-white border border-slate-200 rounded-2xl p-4 space-y-2.5">
+                                <div class="flex items-center justify-between">
+                                    <h4 class="font-extrabold text-slate-900">2️⃣ 부문별 평가 배점 기준 (총 100점 자동 검증)</h4>
+                                    <span class="px-3 py-1 rounded-lg font-extrabold ${sum === 100 ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-700'}">
+                                        현재 합계: 총 ${sum}점 ${sum === 100 ? '(정상)' : '(100점 필요!)'}
+                                    </span>
+                                </div>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                    ${criteriaNames.map((name, i) => `
+                                        <div class="flex items-center justify-between bg-slate-50 p-2 rounded-xl border border-slate-200">
+                                            <span class="font-bold text-slate-800">${name}</span>
+                                            <div class="flex items-center gap-1">
+                                                <input type="number" value="${simState.settingsCriteriaMax[i]}" oninput="window.manualApp.updateSettingsMax(${i}, this.value)" class="w-16 text-center font-extrabold border border-slate-300 rounded-lg py-1 bg-white">
+                                                <span class="font-bold text-slate-600">점</span>
+                                            </div>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+        }
+
+        function renderSlide() {
+            const { slide, realIdx } = getActiveSlide();
+            const container = document.getElementById('slide-container');
+
+            container.innerHTML = `
+                <!-- 좌측: 주요 기능 및 단계별 사용 방법 (5 컬럼) -->
+                <div class="lg:col-span-5 p-6 md:p-8 bg-slate-50/70 border-b lg:border-b-0 lg:border-r border-slate-200 flex flex-col justify-between">
+                    <div class="space-y-4">
+                        <div class="flex items-center justify-between gap-2">
+                            <span class="px-3 py-1 rounded-full font-extrabold border ${slide.roleBadgeClass}">
+                                ${slide.roleBadge}
+                            </span>
+                            <span class="font-black text-slate-400 tracking-wider">${slide.slideNo}</span>
+                        </div>
+
+                        <div>
+                            <h2 class="title-xl font-black text-slate-900 tracking-tight">${slide.title}</h2>
+                            <p class="text-body font-semibold text-slate-600 mt-1.5">${slide.subtitle}</p>
+                        </div>
+
+                        <!-- 단계별 카드 목록 -->
+                        <div class="space-y-3 pt-2">
+                            ${slide.steps.map((st, idx) => `
+                                <div onclick="window.manualApp.selectStep(${idx})" class="step-card p-4 rounded-2xl border-2 bg-white ${activeStepIndex === idx ? 'active-step' : 'border-slate-200'}">
+                                    <div class="font-extrabold text-slate-900 title-md mb-1 flex items-center justify-between">
+                                        <span>${st.title}</span>
+                                        ${activeStepIndex === idx ? '<span class="text-sky-600 font-black">● 선택됨</span>' : ''}
+                                    </div>
+                                    <p class="text-slate-700 font-medium whitespace-pre-line">${st.desc}</p>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+
+                    <!-- 하단 핵심 팁 박스 -->
+                    <div class="mt-5 p-4 rounded-2xl bg-sky-600 text-white font-bold shadow-md">
+                        ${slide.tip}
+                    </div>
+                </div>
+
+                <!-- 우측: 인터랙티브 시스템 화면 (7 컬럼) -->
+                <div class="lg:col-span-7 p-6 md:p-8 bg-gradient-to-br from-slate-100/80 via-white to-sky-50/50 flex flex-col justify-between">
+                    <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+                        <div class="flex items-center gap-2">
+                            <span class="w-3 h-3 rounded-full bg-emerald-500 inline-block"></span>
+                            <span class="font-extrabold text-slate-800">실시간 인터랙티브 시스템 체험 화면</span>
+                        </div>
+                        <span class="px-3 py-1 rounded-full bg-sky-100 text-sky-800 font-bold border border-sky-200">
+                            👆 우측 화면의 버튼과 입력칸을 직접 조작해 보세요
+                        </span>
+                    </div>
+
+                    <div class="sim-window flex-1">
+                        <!-- 브라우저 상단 바 연출 -->
+                        <div class="bg-slate-800 text-slate-200 px-4 py-2.5 flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <span class="w-3 h-3 rounded-full bg-rose-400"></span>
+                                <span class="w-3 h-3 rounded-full bg-amber-400"></span>
+                                <span class="w-3 h-3 rounded-full bg-emerald-400"></span>
+                                <span class="ml-2 font-bold text-slate-300">2026 경영혁신 경진대회 평가 시스템 — ${slide.title}</span>
+                            </div>
+                            <span class="px-2.5 py-0.5 rounded bg-slate-700 text-sky-300 font-bold">Interactive Preview</span>
+                        </div>
+
+                        <!-- 슬라이드별 인터랙티브 본문 -->
+                        <div class="flex-1 flex flex-col justify-center">
+                            ${renderInteractiveRightPane(slide)}
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            updateNavigationUI(realIdx);
+        }
+
+        function updateNavigationUI(realIdx) {
+            const total = filteredSlideIndices.length;
+            const counterEl = document.getElementById('slide-counter-text');
+            if (counterEl) {
+                counterEl.textContent = `Slide ${currentPos + 1} / ${total}`;
+            }
+
+            const prevBtn = document.getElementById('prev-slide-btn');
+            const nextBtn = document.getElementById('next-slide-btn');
+            if (prevBtn) prevBtn.disabled = currentPos <= 0;
+            if (nextBtn) nextBtn.disabled = currentPos >= total - 1;
+
+            // 슬라이드 도트 렌더링
+            const dotsEl = document.getElementById('slide-dots');
+            if (dotsEl) {
+                dotsEl.innerHTML = filteredSlideIndices.map((sIdx, pos) => `
+                    <button type="button" onclick="window.manualApp.goToPos(${pos})"
+                        title="${SLIDES[sIdx].title}"
+                        class="h-3 rounded-full transition-all ${pos === currentPos ? 'w-8 bg-sky-600' : 'w-3 bg-slate-300 hover:bg-slate-400'}">
+                    </button>
+                `).join('');
+            }
+
+            // 드롭다운 점프 메뉴 동기화
+            const jumpSelect = document.getElementById('slide-jump-select');
+            if (jumpSelect) {
+                jumpSelect.innerHTML = filteredSlideIndices.map((sIdx, pos) => `
+                    <option value="${pos}" ${pos === currentPos ? 'selected' : ''}>
+                        [${pos + 1}/${total}] ${SLIDES[sIdx].title}
+                    </option>
+                `).join('');
+            }
+        }
+
+        // 전역 인터랙션 컨트롤러 노출
+        window.manualApp = {
+            goToPos(pos) {
+                if (pos >= 0 && pos < filteredSlideIndices.length) {
+                    currentPos = pos;
+                    activeStepIndex = 0;
+                    renderSlide();
+                }
+            },
+            selectStep(idx) {
+                activeStepIndex = idx;
+                renderSlide();
+            },
+            setOverviewCat(cat) {
+                simState.overviewCat = cat;
+                renderSlide();
+            },
+            setLoginRole(role) {
+                simState.loginRole = role;
+                simState.loginSuccess = false;
+                renderSlide();
+            },
+            setLoginName(val) {
+                simState.loginName = val;
+            },
+            triggerLoginDemo() {
+                simState.loginSuccess = true;
+                activeStepIndex = 1;
+                renderSlide();
+            },
+            updateDemoScore(pKey, idx, max, inputEl) {
+                let val = parseInt(inputEl.value, 10);
+                if (isNaN(val) || val < 0) val = 0;
+                if (val > max) {
+                    val = max;
+                    inputEl.value = max;
+                }
+                simState.scores[pKey][idx] = val;
+                renderSlide();
+            },
+            fillSampleScores() {
+                simState.scores.p1 = [15, 14, 15, 24, 19, 10];
+                simState.scores.p2 = [14, 14, 13, 23, 18, 9];
+                simState.scores.p3 = [15, 15, 15, 25, 19, 10];
+                renderSlide();
+            },
+            updateDemoComment(val) {
+                simState.commentText = val;
+                simState.autosaveStatus = 'saving';
+                renderSlide();
+                clearTimeout(window._autoSaveTimer);
+                window._autoSaveTimer = setTimeout(() => {
+                    simState.autosaveStatus = 'saved';
+                    renderSlide();
+                }, 500);
+            },
+            runLogoutRestoreDemo() {
+                simState.sessionDemoStep = 'logged_out';
+                activeStepIndex = 2;
+                renderSlide();
+                setTimeout(() => {
+                    simState.sessionDemoStep = 'restored';
+                    activeStepIndex = 3;
+                    renderSlide();
+                }, 1200);
+            },
+            setSubmitViewMode(mode) {
+                simState.submitViewMode = mode;
+                activeStepIndex = mode === 'radar' ? 2 : 0;
+                renderSlide();
+            },
+            toggleSubmitDemo() {
+                simState.isSubmitted = !simState.isSubmitted;
+                activeStepIndex = simState.isSubmitted ? 1 : 0;
+                renderSlide();
+            },
+            selectRadarPresenter(idx) {
+                simState.selectedRadarPresenter = idx;
+                renderSlide();
+            },
+            triggerAdminTool(tool) {
+                if (tool === 'year') {
+                    simState.adminArchiveYear = simState.adminArchiveYear === '2026' ? '2025' : '2026';
+                    simState.adminToolbarMsg = simState.adminArchiveYear === '2025'
+                        ? '📁 [2025년 아카이브 모드]로 전환되었습니다. 과거 4개 부문 최종 결과를 안전하게 조회 전용으로 열람합니다.'
+                        : '📅 [2026년 대회 진행 모드]로 복귀했습니다. 지원·기술 2개 부문 실시간 평가가 활성화됩니다.';
+                } else if (tool === 'sim') {
+                    simState.adminSimRunning = true;
+                    simState.adminToolbarMsg = '✨ 가상 평가자 6명의 점수와 임직원 투표 데이터가 생성되어 대시보드 진행률이 100%로 갱신되었습니다!';
+                } else if (tool === 'csv') {
+                    simState.adminToolbarMsg = '📊 전체 평가 점수 및 투표 결과가 엑셀 호환 CSV 파일(UTF-8 BOM)로 즉시 다운로드됩니다.';
+                } else if (tool === 'backup') {
+                    simState.adminToolbarMsg = '💾 현재 대회의 모든 설정·점수·투표 데이터를 JSON 파일로 백업하여 로컬 PC에 안전하게 보관합니다.';
+                } else if (tool === 'print') {
+                    simState.adminToolbarMsg = '🖨️ 현재 보고 있는 종합 결과 또는 최종 결과 보고서를 A4 규격에 맞춰 깔끔하게 인쇄합니다.';
+                } else if (tool === 'resetSim') {
+                    simState.adminSimRunning = false;
+                    simState.adminToolbarMsg = '🧹 실제 심사위원의 점수는 보존하고, 가상 시뮬레이션으로 생성된 테스트 데이터만 안전하게 삭제했습니다.';
+                }
+                renderSlide();
+            },
+            setVoteCat(cat) {
+                simState.voteCat = cat;
+                activeStepIndex = cat === 'support' ? 0 : 1;
+                renderSlide();
+            },
+            addDemoVote(idx) {
+                if (simState.voteCat === 'support') {
+                    simState.supportVotes[idx] += 3;
+                } else {
+                    simState.techVotes[idx] += 3;
+                }
+                renderSlide();
+            },
+            changeFinalAward(idx, newAward) {
+                simState.finalAwards[idx].award = newAward;
+                simState.finalSavedToast = false;
+                activeStepIndex = 2;
+                renderSlide();
+            },
+            saveFinalAwardsDemo() {
+                simState.finalSavedToast = true;
+                activeStepIndex = 2;
+                renderSlide();
+            },
+            nextCeremonyStep() {
+                if (simState.ceremonyStep < 4) {
+                    simState.ceremonyStep += 1;
+                }
+                activeStepIndex = 1;
+                renderSlide();
+            },
+            resetCeremonyStep() {
+                simState.ceremonyStep = 0;
+                renderSlide();
+            },
+            updateSettingsDocUrl(val) {
+                simState.settingsDocUrl = val;
+                simState.settingsSavedToast = false;
+            },
+            updateSettingsMax(idx, val) {
+                simState.settingsCriteriaMax[idx] = parseInt(val, 10) || 0;
+                simState.settingsSavedToast = false;
+                activeStepIndex = 2;
+                renderSlide();
+            },
+            saveSettingsDemo() {
+                simState.settingsSavedToast = true;
+                renderSlide();
+            }
+        };
+
+        document.addEventListener('DOMContentLoaded', () => {
+            document.querySelectorAll('.filter-tab-btn').forEach(btn => {
+                btn.addEventListener('click', () => updateFilter(btn.dataset.filter));
+            });
+
+            document.getElementById('prev-slide-btn')?.addEventListener('click', () => {
+                if (currentPos > 0) {
+                    currentPos -= 1;
+                    activeStepIndex = 0;
+                    renderSlide();
+                }
+            });
+
+            document.getElementById('next-slide-btn')?.addEventListener('click', () => {
+                if (currentPos < filteredSlideIndices.length - 1) {
+                    currentPos += 1;
+                    activeStepIndex = 0;
+                    renderSlide();
+                }
+            });
+
+            document.getElementById('slide-jump-select')?.addEventListener('change', (e) => {
+                window.manualApp.goToPos(parseInt(e.target.value, 10));
+            });
+
+            document.getElementById('fullscreen-btn')?.addEventListener('click', () => {
+                if (!document.fullscreenElement) {
+                    document.documentElement.requestFullscreen().catch(() => {});
+                } else {
+                    document.exitFullscreen().catch(() => {});
+                }
+            });
+
+            // 키보드 좌우 화살표 슬라이드 이동 (입력창 포커스 중에는 제외)
+            document.addEventListener('keydown', (e) => {
+                const tag = (e.target?.tagName || '').toLowerCase();
+                if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+
+                if (e.key === 'ArrowRight' || e.key === 'PageDown') {
+                    if (currentPos < filteredSlideIndices.length - 1) {
+                        currentPos += 1;
+                        activeStepIndex = 0;
+                        renderSlide();
+                    }
+                } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+                    if (currentPos > 0) {
+                        currentPos -= 1;
+                        activeStepIndex = 0;
+                        renderSlide();
+                    }
+                }
+            });
+
+            const hashRole = (window.location.hash || '').replace('#', '');
+            if (hashRole === 'evaluator' || hashRole === 'admin') {
+                updateFilter(hashRole);
+            } else {
+                renderSlide();
+            }
+        });
+    </script>
+</body>
+</html>

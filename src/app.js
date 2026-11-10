@@ -172,11 +172,12 @@ export function updateUIVisibility() {
     const restoreJsonBtn = document.getElementById('restoreJsonBtn');
     const printBtn = document.getElementById('printBtn');
     const saveLogoutBtn = document.getElementById('save-logout-btn');
+    const manualBtn = document.getElementById('manualBtn');
     const resetSimBtn = document.getElementById('resetSimBtn');
     const fullResetBtn = document.getElementById('fullResetBtn');
     const adminDashboardSlot = document.getElementById('admin-dashboard-slot');
 
-    [simBtn, exportBtn, backupJsonBtn, restoreJsonBtn, printBtn, saveLogoutBtn, resetSimBtn, fullResetBtn].forEach(btn => {
+    [simBtn, exportBtn, backupJsonBtn, restoreJsonBtn, printBtn, saveLogoutBtn, manualBtn, resetSimBtn, fullResetBtn].forEach(btn => {
         if (btn) {
             btn.classList.add('hidden');
             btn.style.display = 'none';
@@ -191,6 +192,7 @@ export function updateUIVisibility() {
     };
 
     if (appState.currentUserRole === 'admin') {
+        if (manualBtn) manualBtn.href = './manual.html#admin';
         showBtn(simBtn);
         showBtn(exportBtn);
         showBtn(backupJsonBtn);
@@ -198,6 +200,7 @@ export function updateUIVisibility() {
         showBtn(printBtn);
         showBtn(resetSimBtn);
         showBtn(fullResetBtn);
+        showBtn(manualBtn);
         showBtn(saveLogoutBtn);
         allTabs.forEach(tab => tab.style.display = 'inline-flex');
 
@@ -226,6 +229,8 @@ export function updateUIVisibility() {
             }
         });
     } else if (appState.currentUserRole === 'evaluator') {
+        if (manualBtn) manualBtn.href = './manual.html#evaluator';
+        showBtn(manualBtn);
         showBtn(saveLogoutBtn);
         if (adminDashboardSlot) {
             adminDashboardSlot.classList.add('hidden');
