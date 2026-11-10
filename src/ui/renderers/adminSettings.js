@@ -218,6 +218,16 @@ export function renderAdminSettings() {
  * 현재 화면에 입력된 발표자/배점 폼 값을 appState에 임시 동기화 (행 추가/삭제 전 기존 타이핑 보존용)
  */
 export function syncSettingsFormToState() {
+    const titleEl = document.getElementById('config-title');
+    const yearEl = document.getElementById('config-year');
+    const docLinkEl = document.getElementById('config-doc-link');
+    const totalVotersEl = document.getElementById('config-total-voters');
+
+    if (titleEl) appState.eventInfo.TITLE = titleEl.value.trim() || appState.eventInfo.TITLE;
+    if (yearEl) appState.eventInfo.YEAR = yearEl.value.trim() || String(appState.currentYear);
+    if (docLinkEl) appState.eventInfo.DOC_LINK = docLinkEl.value.trim() || appState.eventInfo.DOC_LINK;
+    if (totalVotersEl) appState.eventInfo.TOTAL_VOTERS = parseInt(totalVotersEl.value, 10) || 200;
+
     document.querySelectorAll('.presenter-name-input').forEach(input => {
         const row = input.closest('.presenter-config-row');
         if (row) {
@@ -266,9 +276,10 @@ export async function handleSaveConfig() {
     const newConfig = {
         schemaVersion: SCHEMA_VERSION_2026,
         eventInfo: {
-            TITLE: document.getElementById('config-title')?.value || appState.eventInfo.TITLE,
-            YEAR: document.getElementById('config-year')?.value || String(appState.currentYear),
-            DOC_LINK: document.getElementById('config-doc-link')?.value || appState.eventInfo.DOC_LINK,
+            TITLE: (document.getElementById('config-title')?.value || appState.eventInfo.TITLE || '').trim(),
+            YEAR: (document.getElementById('config-year')?.value || String(appState.currentYear)).trim(),
+            DOC_LINK: (document.getElementById('config-doc-link')?.value || appState.eventInfo.DOC_LINK || '').trim(),
+            DOC_TITLE: appState.eventInfo.DOC_TITLE || `${appState.currentYear}년 경영혁신경진대회 식순 및 발표 요약문집`,
             TOTAL_VOTERS: parseInt(document.getElementById('config-total-voters')?.value, 10) || 200
         },
         presenters: JSON.parse(JSON.stringify(appState.presenters)),

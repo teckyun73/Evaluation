@@ -279,7 +279,16 @@ export const appState = {
             }
         }
         if (config.eventInfo) {
-            this.yearConfigs[targetYear].eventInfo = JSON.parse(JSON.stringify(config.eventInfo));
+            const mergedEventInfo = {
+                ...EVENT_INFO,
+                ...JSON.parse(JSON.stringify(config.eventInfo))
+            };
+            // 2026년 설정에 과거 2025년 기본 PDF 링크가 남아있을 경우 2026년 신규 기본 링크로 자동 교체
+            const legacy2025DocLink = ORIGINAL_2025_CONFIG.eventInfo.DOC_LINK;
+            if (!mergedEventInfo.DOC_LINK || mergedEventInfo.DOC_LINK.trim() === legacy2025DocLink) {
+                mergedEventInfo.DOC_LINK = EVENT_INFO.DOC_LINK;
+            }
+            this.yearConfigs[targetYear].eventInfo = mergedEventInfo;
         }
 
         // 현재 활성 연도와 일치할 때만 인메모리 적용 및 알림

@@ -3,7 +3,8 @@
  * 메인 애플리케이션 진입점 및 전역 이벤트 컨트롤러
  */
 
-import { CATEGORY_DISPLAY_NAMES, CATEGORY_METADATA, AWARD_SLOTS_2026 } from './config/constants.js';
+import { EVENT_INFO, CATEGORY_DISPLAY_NAMES, CATEGORY_METADATA, AWARD_SLOTS_2026 } from './config/constants.js';
+import { initializeFirebaseOnce } from './config/firebase.js';
 import { appState } from './state/appState.js';
 import { exportToCSV } from './utils/exportCsv.js';
 import { handleScoreTableKeyDown } from './utils/keyboardNav.js';
@@ -13,6 +14,7 @@ import { showMessage, initModal } from './ui/modal.js';
 import { login, logout } from './services/authService.js';
 import {
     switchYear,
+    setupConfigListener,
     updateScore,
     updateComment,
     submitCategory as firestoreSubmitCategory,
@@ -255,9 +257,30 @@ export function updateUIVisibility() {
 }
 
 /**
+ * 대회 기본 정보(발표 요약문집 PDF 링크 URL, 대회 제목 등)를 로그인 화면 및 헤더 DOM에 실시간 동기화
+ */
+function syncEventInfoToDOM() {
+    const info = appState.eventInfo || EVENT_INFO;
+    const docLinkEl = document.getElementById('login-doc-link');
+    if (docLinkEl && info.DOC_LINK) {
+        docLinkEl.href = info.DOC_LINK;
+    }
+    const docTitleEl = document.getElementById('login-doc-title');
+    if (docTitleEl && info.DOC_TITLE) {
+        docTitleEl.textContent = info.DOC_TITLE;
+    }
+    const headerTitleEl = document.getElementById('app-header-title');
+    if (headerTitleEl && info.TITLE) {
+        headerTitleEl.textContent = info.TITLE;
+    }
+}
+
+/**
  * 활성 탭 화면 렌더링
  */
 export function render() {
+    syncEventInfoToDOM();
+
     const tabContent = document.getElementById('tab-content');
     if (!tabContent) return;
 
@@ -420,7 +443,11 @@ async function onLoginSubmit() {
                 if (eventType === 'SAVE_STATUS_CHANGED') {
                     updateAutosaveBadge();
                 }
+                if (eventType === 'YEAR_CHANGED') {
+                    syncEventInfoToDOM();
+                }
                 if (eventType === 'CONFIG_CHANGED') {
+                    syncEventInfoToDOM();
                     if (appState.activeTab === 'award_ceremony') {
                         updateCeremonyCards();
                     } else if (appState.activeTab !== 'admin_settings') {
@@ -491,6 +518,18 @@ function setupNetworkListeners() {
 document.addEventListener('DOMContentLoaded', () => {
     initModal();
     setupNetworkListeners();
+    syncEventInfoToDOM();
+
+    // 로그인 전 초기 화면에서도 Firestore 최신 대회 설정(발표 요약문집 PDF 링크 URL 등)을 실시간 반영
+    initializeFirebaseOnce()
+        .then(() => {
+            setupConfigListener(() => {
+                syncEventInfoToDOM();
+            });
+        })
+        .catch((err) => {
+            console.warn('Initial config sync skipped:', err);
+        });
 
     // 역할 선택 버튼
     const roleEvaluatorBtn = document.getElementById('role-evaluator');
