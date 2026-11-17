@@ -39,7 +39,18 @@ import { renderPresentationResults } from './ui/renderers/presentationResults.js
 import { renderLiveVoteStatus } from './ui/renderers/liveVoteStatus.js';
 import { renderDetailedResults } from './ui/renderers/detailedResults.js';
 import { renderVoterDetailedResults } from './ui/renderers/voterDetailedResults.js';
-import { renderFinalResults, updateFinalAwardsSummaryBoard, broadcastAwardsBoardUpdate } from './ui/renderers/finalResults.js';
+import {
+    renderFinalResults,
+    updateFinalAwardsSummaryBoard,
+    broadcastAwardsBoardUpdate,
+    updateCasinoBettingBoard,
+    setActiveCasinoCategory,
+    selectCasinoCardForMove,
+    clearCasinoCardSelection,
+    getSelectedCasinoCard,
+    swapCasinoCards,
+    moveCasinoCardToZone
+} from './ui/renderers/finalResults.js';
 import { renderFinalResultsCharts, downloadChartAsPNG } from './ui/chartManager.js';
 import { renderExcellentPresenters } from './ui/renderers/excellentPresenters.js';
 
@@ -907,8 +918,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
 
-            // 최종 결과: 훈격 확정 저장 (시상식 및 종합결과 동기화)
-            if (e.target.closest('#save-final-awards-btn')) {
+            // 최종 결과: 훈격 확정 저장 (상단 저장 버튼 및 카지노 보드 저장 버튼 공용)
+            if (e.target.closest('#save-final-awards-btn') || e.target.closest('#casino-save-awards-btn')) {
                 if (appState.isArchiveMode() || !appState.finalResultsData) return;
                 const overrides = {};
                 Object.keys(appState.finalResultsData).forEach(cat => {
@@ -976,6 +987,35 @@ document.addEventListener('DOMContentLoaded', () => {
                     'FinalAwardsBoardPopout',
                     'width=1440,height=920,menubar=no,toolbar=no,location=no,status=no,resizable=yes'
                 );
+            }
+
+            // 카지노 배팅 보드: 부문 전환 탭
+            const casinoCatBtn = e.target.closest('.casino-category-tab-btn');
+            if (casinoCatBtn) {
+                setActiveCasinoCategory(casinoCatBtn.dataset.category);
+                return;
+            }
+
+            // 카지노 배팅 보드: 카드 선택 취소
+            if (e.target.closest('#casino-cancel-select-btn')) {
+                clearCasinoCardSelection();
+                return;
+            }
+
+            // 카지노 배팅 보드: 카드 클릭 선택 / 맞교환 또는 테이블 클릭 배치
+            const casinoCard = e.target.closest('.casino-presenter-card');
+            if (casinoCard && !appState.isArchiveMode()) {
+                selectCasinoCardForMove(casinoCard.dataset.category, parseInt(casinoCard.dataset.index, 10));
+                return;
+            }
+
+            const casinoZone = e.target.closest('.casino-bet-zone');
+            if (casinoZone && !appState.isArchiveMode()) {
+                const selected = getSelectedCasinoCard();
+                if (selected && selected.category === casinoZone.dataset.category) {
+                    moveCasinoCardToZone(selected.category, selected.index, casinoZone.dataset.zoneKey);
+                    return;
+                }
             }
 
             // 설정 저장 버튼
@@ -1103,6 +1143,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     appState.finalResultsData[category][index].id = selectedPresenter.id;
                     appState.finalResultsData[category][index].name = selectedPresenter.name;
                     renderFinalResultsCharts(appState.finalResultsData);
+                    updateCasinoBettingBoard();
                     updateFinalAwardsSummaryBoard();
                 }
             }
@@ -1133,6 +1174,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const noteEl = tr.querySelector('.final-award-note');
                 if (noteEl) noteEl.textContent = targetItem.awardNote || '';
+                updateCasinoBettingBoard();
                 updateFinalAwardsSummaryBoard();
             }
         });
@@ -1203,8 +1245,92 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (totalCell) totalCell.textContent = currentData.totalScore.toFixed(2);
 
                 renderFinalResultsCharts(appState.finalResultsData);
+                updateCasinoBettingBoard();
                 updateFinalAwardsSummaryBoard();
             }
         }, true);
+
+        // 카지노 배팅 테이블 드래그 & 드롭 카드 이동/맞교환 이벤트 위임
+        let draggedCasinoCard = null;
+
+        tabContent.addEventListener('dragstart', (e) => {
+            const card = e.target.closest('.casino-presenter-card');
+            if (!card || appState.isArchiveMode()) return;
+            const category = card.dataset.category;
+            const index = parseInt(card.dataset.index, 10);
+            draggedCasinoCard = { category, index };
+            card.classList.add('card-dragging');
+            if (e.dataTransfer) {
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/plain', `${category}:${index}`);
+            }
+        });
+
+        tabContent.addEventListener('dragover', (e) => {
+            if (!draggedCasinoCard || appState.isArchiveMode()) return;
+            const targetCard = e.target.closest('.casino-presenter-card');
+            const targetZone = e.target.closest('.casino-bet-zone');
+            if (!targetCard && !targetZone) return;
+
+            const targetCategory = (targetCard || targetZone).dataset.category;
+            if (targetCategory !== draggedCasinoCard.category) return;
+
+            e.preventDefault();
+            if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+
+            tabContent.querySelectorAll('.casino-bet-zone.drag-over').forEach(el => {
+                if (el !== targetZone) el.classList.remove('drag-over');
+            });
+            tabContent.querySelectorAll('.casino-presenter-card.card-drop-target').forEach(el => {
+                if (el !== targetCard) el.classList.remove('card-drop-target');
+            });
+
+            if (targetCard && parseInt(targetCard.dataset.index, 10) !== draggedCasinoCard.index) {
+                targetCard.classList.add('card-drop-target');
+            } else if (targetZone) {
+                targetZone.classList.add('drag-over');
+            }
+        });
+
+        tabContent.addEventListener('dragleave', (e) => {
+            const targetZone = e.target.closest('.casino-bet-zone');
+            if (targetZone && (!e.relatedTarget || !targetZone.contains(e.relatedTarget))) {
+                targetZone.classList.remove('drag-over');
+            }
+            const targetCard = e.target.closest('.casino-presenter-card');
+            if (targetCard && (!e.relatedTarget || !targetCard.contains(e.relatedTarget))) {
+                targetCard.classList.remove('card-drop-target');
+            }
+        });
+
+        tabContent.addEventListener('drop', (e) => {
+            if (!draggedCasinoCard || appState.isArchiveMode()) return;
+            const targetCard = e.target.closest('.casino-presenter-card');
+            const targetZone = e.target.closest('.casino-bet-zone');
+            if (!targetCard && !targetZone) return;
+
+            e.preventDefault();
+            const { category: fromCat, index: fromIdx } = draggedCasinoCard;
+            draggedCasinoCard = null;
+
+            if (targetCard && targetCard.dataset.category === fromCat) {
+                const toIdx = parseInt(targetCard.dataset.index, 10);
+                if (toIdx !== fromIdx) {
+                    swapCasinoCards(fromCat, fromIdx, toIdx);
+                    return;
+                }
+            }
+
+            if (targetZone && targetZone.dataset.category === fromCat) {
+                moveCasinoCardToZone(fromCat, fromIdx, targetZone.dataset.zoneKey);
+            }
+        });
+
+        tabContent.addEventListener('dragend', () => {
+            draggedCasinoCard = null;
+            tabContent.querySelectorAll('.card-dragging').forEach(el => el.classList.remove('card-dragging'));
+            tabContent.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+            tabContent.querySelectorAll('.card-drop-target').forEach(el => el.classList.remove('card-drop-target'));
+        });
     }
 });

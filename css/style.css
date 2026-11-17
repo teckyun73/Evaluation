@@ -263,6 +263,98 @@ tfoot .sticky-col {
 }
 
 /* ==========================================================================
+   Casino Felt Award Betting Board & Presenter Cards
+   ========================================================================== */
+.casino-felt-board {
+    background:
+        radial-gradient(ellipse at 50% 0%, rgba(16, 185, 129, 0.24) 0%, rgba(6, 95, 70, 0.1) 55%, transparent 80%),
+        linear-gradient(160deg, #065f46 0%, #064e3b 52%, #022c22 100%);
+    border: 6px solid #1e293b;
+    box-shadow:
+        inset 0 0 0 2px rgba(251, 191, 36, 0.42),
+        inset 0 12px 32px rgba(0, 0, 0, 0.35),
+        0 20px 35px -10px rgba(2, 44, 34, 0.35);
+}
+
+.casino-bet-zone {
+    background: rgba(2, 44, 34, 0.48);
+    border: 2px dashed rgba(251, 191, 36, 0.45);
+    transition: all 0.18s ease-out;
+}
+
+.casino-bet-zone.zone-top {
+    border-color: rgba(251, 191, 36, 0.78);
+    background: linear-gradient(180deg, rgba(120, 53, 15, 0.35) 0%, rgba(2, 44, 34, 0.55) 100%);
+}
+
+.casino-bet-zone.zone-runnerup {
+    border-color: rgba(56, 189, 248, 0.65);
+    background: linear-gradient(180deg, rgba(7, 89, 133, 0.3) 0%, rgba(2, 44, 34, 0.55) 100%);
+}
+
+.casino-bet-zone.zone-encouragement {
+    border-color: rgba(52, 211, 153, 0.65);
+    background: linear-gradient(180deg, rgba(6, 95, 70, 0.35) 0%, rgba(2, 44, 34, 0.55) 100%);
+}
+
+.casino-bet-zone.zone-special {
+    border-color: rgba(192, 132, 252, 0.7);
+    background: linear-gradient(180deg, rgba(88, 28, 135, 0.28) 0%, rgba(2, 44, 34, 0.55) 100%);
+}
+
+.casino-bet-zone.zone-unassigned {
+    border-color: rgba(148, 163, 184, 0.45);
+    background: rgba(15, 23, 42, 0.45);
+}
+
+.casino-bet-zone.drag-over {
+    transform: translateY(-2px) scale(1.01);
+    border-style: solid !important;
+    border-color: #fde047 !important;
+    box-shadow: 0 0 0 3px rgba(253, 224, 71, 0.35), 0 12px 24px rgba(0, 0, 0, 0.35);
+    background-color: rgba(251, 191, 36, 0.14) !important;
+}
+
+.casino-presenter-card {
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    border: 2px solid #e2e8f0;
+    box-shadow: 0 6px 14px -2px rgba(15, 23, 42, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+    user-select: none;
+}
+
+.casino-presenter-card[draggable="true"] {
+    cursor: grab;
+}
+
+.casino-presenter-card[draggable="true"]:hover {
+    transform: translateY(-3px);
+    border-color: #fbbf24;
+    box-shadow: 0 12px 22px -4px rgba(15, 23, 42, 0.45), 0 0 0 2px rgba(251, 191, 36, 0.35);
+}
+
+.casino-presenter-card[draggable="true"]:active {
+    cursor: grabbing;
+}
+
+.casino-presenter-card.card-dragging {
+    opacity: 0.45;
+    transform: scale(0.97);
+}
+
+.casino-presenter-card.card-selected {
+    border-color: #f59e0b !important;
+    box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.8), 0 14px 26px -4px rgba(0, 0, 0, 0.5) !important;
+    transform: translateY(-4px);
+}
+
+.casino-presenter-card.card-drop-target {
+    border-color: #38bdf8 !important;
+    box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.75) !important;
+    transform: scale(1.02);
+}
+
+/* ==========================================================================
    Chart Container
    ========================================================================== */
 .chart-container {

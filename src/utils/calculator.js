@@ -167,6 +167,11 @@ export function calculateResults(
 
         // 훈격 배정 (2026년 신규 포상 슬롯 vs 2025년 레거시 훈격 분기)
         results[category].forEach((p, index) => {
+            p.initialRank = index + 1;
+            p.initialAward = '-';
+            p.initialAwardId = '';
+            p.initialAwardNote = '';
+
             p.award = '-';
             p.awardId = '';
             p.awardTier = '';
@@ -177,6 +182,10 @@ export function calculateResults(
                 // 1) 기본 순위 자동 매핑 (점수가 1점이라도 입력된 경우)
                 if (p.totalScore > 0 && index < categoryAwardSlots.length) {
                     const slot = categoryAwardSlots[index];
+                    p.initialAward = slot.award;
+                    p.initialAwardId = slot.awardId;
+                    p.initialAwardNote = slot.note || '';
+
                     p.award = slot.award;
                     p.awardId = slot.awardId;
                     p.awardTier = slot.tier;
@@ -231,6 +240,7 @@ export function calculateResults(
                         p.award = '장려';
                         p.awardTier = 'encouragement';
                     }
+                    p.initialAward = p.award;
                 }
             }
         });
