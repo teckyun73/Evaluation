@@ -332,10 +332,10 @@ export function renderCasinoBettingBoardHTML(finalData, isArchive) {
         const count = (finalData[cat] || []).length;
         return `
             <button type="button"
-                    class="casino-category-tab-btn text-xs md:text-sm font-extrabold px-4 py-2 rounded-xl border transition flex items-center gap-1.5 whitespace-nowrap ${isActive ? 'bg-amber-400 text-slate-950 border-amber-200 shadow-md' : 'bg-black/30 text-emerald-100 border-emerald-400/30 hover:bg-black/45'}"
+                    class="casino-category-tab-btn text-xs font-extrabold px-3 py-1.5 rounded-lg border transition flex items-center gap-1.5 whitespace-nowrap ${isActive ? 'bg-amber-400 text-slate-950 border-amber-200 shadow-md' : 'bg-black/30 text-emerald-100 border-emerald-400/30 hover:bg-black/45'}"
                     data-category="${cat}">
                 <span>${meta.icon ? meta.icon : ''} ${CATEGORY_DISPLAY_NAMES[cat] || cat} 부문</span>
-                <span class="text-[11px] px-1.5 py-0.2 rounded-full ${isActive ? 'bg-slate-900/15 text-slate-950' : 'bg-white/10 text-emerald-100'}">${count}건</span>
+                <span class="text-[11px] px-1.5 py-0.5 rounded-full leading-none ${isActive ? 'bg-slate-900/15 text-slate-950' : 'bg-white/10 text-emerald-100'}">${count}건</span>
             </button>
         `;
     }).join('');
@@ -344,27 +344,28 @@ export function renderCasinoBettingBoardHTML(finalData, isArchive) {
         <section id="casino-betting-section" class="mb-8">
             <div class="casino-felt-board rounded-3xl p-4 md:p-6 text-white">
                 <!-- 테이블 상단 레일 헤더 -->
-                <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 pb-4 mb-5 border-b border-amber-300/25">
-                    <div>
+                <div class="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 pb-4 mb-5 border-b border-amber-300/25">
+                    <div class="min-w-0 flex-1">
                         <div class="flex flex-wrap items-center gap-2 mb-1">
                             <span class="text-xs font-black tracking-widest uppercase px-2.5 py-0.5 rounded-full bg-amber-400/20 text-amber-300 border border-amber-300/40">
-                                ♠ ♥ CASINO AWARD TABLE ♦ ♣
+                                ♠ ♥ AWARD TABLE ♦ ♣
                             </span>
                             ${isArchive ? `<span class="text-xs font-bold px-2.5 py-0.5 rounded-full bg-slate-700 text-slate-200 border border-slate-500">조회 전용</span>` : `<span class="text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-400/20 text-emerald-200 border border-emerald-300/30">드래그 & 드롭 또는 카드 클릭 맞교환</span>`}
                         </div>
                         <h2 class="text-xl md:text-2xl font-black text-white tracking-tight">
-                            훈격 · 특별상 직관 배치 보드 (카지노 배팅 테이블)
+                            훈격 · 특별상 직관 배치 보드
                         </h2>
                         <p class="text-xs md:text-sm text-emerald-100/85 mt-0.5">
                             발표자 카드를 원하는 <strong>훈격 / 특별상 테이블</strong>로 드래그해 놓거나 다른 카드 위에 올려 1:1 맞교환하세요. 아래 수정 표와 요약 보드에 실시간 반영됩니다.
                         </p>
                     </div>
 
-                    <div class="flex flex-wrap items-center gap-2">
+                    <div class="flex flex-wrap sm:flex-nowrap items-center gap-1.5 flex-shrink-0">
                         ${categoryTabsHTML}
                         ${!isArchive ? `
-                        <button type="button" id="casino-save-awards-btn" class="text-xs md:text-sm font-extrabold px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-xl border border-purple-300/40 shadow-md transition whitespace-nowrap">
-                            💾 현재 배치 확정 저장
+                        <button type="button" id="casino-save-awards-btn" class="text-xs font-extrabold px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white rounded-lg border border-purple-300/40 shadow-md transition whitespace-nowrap flex items-center gap-1">
+                            <span>💾</span>
+                            <span>현재 배치 확정 저장</span>
                         </button>
                         ` : ''}
                     </div>
