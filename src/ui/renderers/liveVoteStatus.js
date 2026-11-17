@@ -4,8 +4,8 @@
  */
 
 import { CATEGORY_DISPLAY_NAMES, CATEGORY_METADATA, CATEGORY_VOTE_RULE_LABELS, INTRO_TEXTS } from '../../config/constants.js';
-import { appState } from '../../state/appState.js';
-import { calculateVoteCounts, calculateVoteScores } from '../../utils/calculator.js';
+import { appState } from '../../state/appState.js?v=20261117_v5';
+import { calculateVoteCounts, calculateVoteScores } from '../../utils/calculator.js?v=20261117_v5';
 import { renderLiveVoteCharts } from '../chartManager.js';
 
 export function renderLiveVoteStatus() {

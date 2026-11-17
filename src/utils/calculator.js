@@ -10,7 +10,7 @@ import {
     CATEGORY_VOTE_SCORE_MAPS,
     AWARD_SLOTS_2026
 } from '../config/constants.js';
-import { appState } from '../state/appState.js';
+import { appState } from '../state/appState.js?v=20261117_v5';
 
 /**
  * 부문별/발표자별 투표 득표수 계산

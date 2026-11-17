@@ -5,7 +5,7 @@
  */
 
 import { getDb, collection, getDocs, doc, setDoc, writeBatch, getAppId } from '../config/firebase.js';
-import { appState } from '../state/appState.js';
+import { appState } from '../state/appState.js?v=20261117_v5';
 import { showMessage } from '../ui/modal.js';
 
 export async function exportFullDatabaseToJSON() {

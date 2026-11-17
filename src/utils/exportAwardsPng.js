@@ -5,7 +5,7 @@
  */
 
 import { CATEGORY_DISPLAY_NAMES, CATEGORY_METADATA } from '../config/constants.js';
-import { appState } from '../state/appState.js';
+import { appState } from '../state/appState.js?v=20261117_v5';
 
 function getAwardStyle(award = '-') {
     if (!award || award === '-') {

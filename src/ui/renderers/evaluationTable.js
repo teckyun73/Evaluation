@@ -4,7 +4,7 @@
  */
 
 import { CATEGORY_DISPLAY_NAMES, CATEGORY_METADATA, INTRO_TEXTS } from '../../config/constants.js';
-import { appState } from '../../state/appState.js';
+import { appState } from '../../state/appState.js?v=20261117_v5';
 
 function getAutosaveBadgeHtml() {
     const status = (appState.saveStatus || 'idle').toLowerCase();
@@ -59,7 +59,7 @@ export function renderEvaluationTable(categoryKey) {
         </div>
     `;
 
-    let tableHTML = `<div class="overflow-x-auto rounded-xl border border-slate-200 shadow-xs"><table data-category="${categoryKey}" class="w-full text-sm text-left text-slate-500">`;
+    let tableHTML = `<div class="overflow-x-auto rounded-xl border border-slate-200 shadow-xs"><table id="eval-score-table" data-category="${categoryKey}" class="w-full text-sm text-left text-slate-500">`;
     tableHTML += `<thead class="text-xs text-slate-700 uppercase bg-slate-100"><tr>`;
     tableHTML += `<th scope="col" class="px-5 py-3.5 sticky-col bg-slate-100 min-w-[220px]">평가항목</th>`;
     tableHTML += `<th scope="col" class="px-3 py-3.5 text-center whitespace-nowrap">배점</th>`;
@@ -169,15 +169,19 @@ export function updateAutosaveBadge() {
 export function renderColumnTotals(categoryKey, options = {}) {
     const fromUserInput = Boolean(options && options.fromUserInput);
     const tabContent = document.getElementById('tab-content');
-    const table = document.querySelector('#tab-content table');
+    const table =
+        document.getElementById('eval-score-table') ||
+        document.querySelector('#tab-content table');
     if (!table || !table.tfoot) return;
 
     const targetCategory = table.dataset.category || categoryKey || appState.activeTab;
-    const scoreInputs = tabContent ? Array.from(tabContent.querySelectorAll('.score-input')) : [];
+    const scoreInputs = tabContent
+        ? Array.from(tabContent.querySelectorAll('.score-input'))
+        : [];
 
     if (tabContent && appState.loginId) {
         if (!fromUserInput) {
-            // Firestore 원격 로드 시: 포커스 중이거나 로컬 저장 대기 중인 셀은 보호하고, 빈 입력칸에 원격 점수 복원
+            // Firestore 원격 로드 시: 포커스 중이거나 로컬 저장 대기 중인 셀은 보호하고, 나머지 셀만 원격 점수 동기화
             scoreInputs.forEach(input => {
                 if (document.activeElement === input) return;
                 const { id, key } = input.dataset;
@@ -204,7 +208,7 @@ export function renderColumnTotals(categoryKey, options = {}) {
             });
         }
 
-        // 화면 DOM 입력칸에 기입된 최신 점수를 인메모리 상태와 양방향 동기화 (입력 즉시 합계 누락 원천 차단)
+        // 화면 DOM 입력칸에 기입된 최신 점수를 인메모리 상태와 양방향 동기화 (입력 즉시 합계 반영)
         scoreInputs.forEach(input => {
             const { id, key } = input.dataset;
             if (!id || !key) return;
@@ -218,6 +222,25 @@ export function renderColumnTotals(categoryKey, options = {}) {
         });
     }
 
+    // DOM 입력칸 기준 발표자별 합계 맵 선계산
+    const domTotalsByPresenter = new Map();
+    const domCountsByPresenter = new Map();
+    scoreInputs.forEach(inp => {
+        const pid = inp.dataset.id;
+        if (!pid) return;
+        domCountsByPresenter.set(pid, (domCountsByPresenter.get(pid) || 0) + 1);
+        const raw = inp.value.trim();
+        let val = 0;
+        if (raw !== '') {
+            const parsed = parseInt(raw, 10);
+            val = Number.isNaN(parsed) ? 0 : parsed;
+        } else if (appState.loginId) {
+            const memVal = Number(appState.allScores[pid]?.scores?.[appState.loginId]?.[inp.dataset.key]);
+            val = Number.isFinite(memVal) ? memVal : 0;
+        }
+        domTotalsByPresenter.set(pid, (domTotalsByPresenter.get(pid) || 0) + val);
+    });
+
     const criteria = appState.evaluationCriteria[targetCategory] || [];
     const categoryPresenters = appState.presenters[targetCategory] || [];
 
@@ -227,21 +250,11 @@ export function renderColumnTotals(categoryKey, options = {}) {
     categoryPresenters.forEach((p, index) => {
         const cellIndex = index + 2;
 
-        // 1. 내 점수 합계: 현재 DOM 입력칸 값을 최우선 합산하고 인메모리 값으로 폴백
-        const presenterInputs = scoreInputs.filter(inp => inp.dataset.id === p.id);
+        // 1. 내 점수 합계: DOM 입력칸 합계를 최우선 사용하고, 없으면 인메모리 값으로 폴백
         let myTotal = 0;
-
-        if (presenterInputs.length > 0) {
-            myTotal = presenterInputs.reduce((sum, inp) => {
-                const raw = inp.value.trim();
-                if (raw !== '') {
-                    const val = parseInt(raw, 10);
-                    return sum + (Number.isNaN(val) ? 0 : val);
-                }
-                const memVal = Number(appState.allScores[p.id]?.scores?.[appState.loginId]?.[inp.dataset.key]);
-                return sum + (Number.isFinite(memVal) ? memVal : 0);
-            }, 0);
-        } else if (appState.allScores[p.id]?.scores?.[appState.loginId]) {
+        if ((domCountsByPresenter.get(p.id) || 0) > 0) {
+            myTotal = domTotalsByPresenter.get(p.id) || 0;
+        } else if (appState.loginId && appState.allScores[p.id]?.scores?.[appState.loginId]) {
             myTotal = criteria.reduce((sum, c) => {
                 const val = Number(appState.allScores[p.id].scores[appState.loginId][c.key]);
                 return sum + (Number.isFinite(val) ? val : 0);
@@ -252,7 +265,7 @@ export function renderColumnTotals(categoryKey, options = {}) {
             table.querySelector(`td[data-my-total-id="${p.id}"]`) ||
             (myTotalRow && myTotalRow.cells[cellIndex]);
         if (myTotalCell) {
-            myTotalCell.textContent = myTotal;
+            myTotalCell.textContent = String(myTotal);
         }
 
         // 2. 평균 점수: 전체 평가자 점수 평균 실시간 산출

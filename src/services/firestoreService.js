@@ -17,7 +17,7 @@ import {
     deleteField, 
     getAppId 
 } from '../config/firebase.js';
-import { appState } from '../state/appState.js';
+import { appState } from '../state/appState.js?v=20261117_v5';
 import { SCHEMA_VERSION_2026 } from '../config/constants.js';
 import { generateUUID } from '../utils/helpers.js';
 import { hashPassword } from '../utils/crypto.js';

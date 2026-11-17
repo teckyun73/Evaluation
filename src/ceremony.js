@@ -4,12 +4,12 @@
  */
 
 import { initializeFirebaseOnce } from './config/firebase.js';
-import { appState } from './state/appState.js';
+import { appState } from './state/appState.js?v=20261117_v5';
 import {
     setupConfigListener,
     setupRealtimeScoresListener,
     setupExcellentPresenterListener
-} from './services/firestoreService.js';
+} from './services/firestoreService.js?v=20261117_v5';
 import {
     renderAwardCeremony,
     handleNextReveal,

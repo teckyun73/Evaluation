@@ -4,8 +4,8 @@
  */
 
 import { CATEGORY_DISPLAY_NAMES, CATEGORY_METADATA, INTRO_TEXTS } from '../../config/constants.js';
-import { appState } from '../../state/appState.js';
-import { calculateResults } from '../../utils/calculator.js';
+import { appState } from '../../state/appState.js?v=20261117_v5';
+import { calculateResults } from '../../utils/calculator.js?v=20261117_v5';
 import { renderPresentationChart } from '../chartManager.js';
 
 export function renderPresentationResults() {

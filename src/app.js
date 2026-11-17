@@ -5,7 +5,7 @@
 
 import { EVENT_INFO, CATEGORY_DISPLAY_NAMES, CATEGORY_METADATA, AWARD_SLOTS_2026 } from './config/constants.js';
 import { initializeFirebaseOnce } from './config/firebase.js';
-import { appState } from './state/appState.js';
+import { appState } from './state/appState.js?v=20261117_v5';
 import { exportToCSV } from './utils/exportCsv.js';
 import { handleScoreTableKeyDown } from './utils/keyboardNav.js';
 import { exportFullDatabaseToJSON, importDatabaseFromJSON } from './utils/backupRestore.js';
@@ -26,10 +26,10 @@ import {
     runSimulation,
     resetSimulationData,
     resetAllData
-} from './services/firestoreService.js';
+} from './services/firestoreService.js?v=20261117_v5';
 
 // UI 렌더러 모듈
-import { renderEvaluationTable, renderColumnTotals, updateAutosaveBadge } from './ui/renderers/evaluationTable.js';
+import { renderEvaluationTable, renderColumnTotals, updateAutosaveBadge } from './ui/renderers/evaluationTable.js?v=20261117_v5';
 import { renderAdminDashboard } from './ui/renderers/adminDashboard.js';
 import { renderAdminSettings, handleSaveConfig, handleChangePassword, syncSettingsFormToState } from './ui/renderers/adminSettings.js';
 import { renderAwardCeremony, handleNextReveal, handleResetCeremony, updateCeremonyCards, broadcastCeremonyAction } from './ui/renderers/awardCeremony.js';
@@ -50,7 +50,7 @@ import {
     getSelectedCasinoCard,
     swapCasinoCards,
     moveCasinoCardToZone
-} from './ui/renderers/finalResults.js';
+} from './ui/renderers/finalResults.js?v=20261117_v5';
 import { renderFinalResultsCharts, downloadChartAsPNG } from './ui/chartManager.js';
 import { renderExcellentPresenters } from './ui/renderers/excellentPresenters.js';
 
@@ -72,7 +72,7 @@ function trackSavePromise(promise) {
 
 function debouncedUpdateScore(id, key, value) {
     const mapKey = `${id}:::${key}`;
-    appState.markPendingScore(id, key);
+    appState.markPendingScore?.(id, key);
     if (pendingScoreTimers.has(mapKey)) {
         clearTimeout(pendingScoreTimers.get(mapKey).timerId);
     }
@@ -83,7 +83,11 @@ function debouncedUpdateScore(id, key, value) {
                 console.error("Score update failed:", err);
             })
             .finally(() => {
-                appState.clearPendingScore(id, key);
+                setTimeout(() => {
+                    if (!pendingScoreTimers.has(mapKey)) {
+                        appState.clearPendingScore?.(id, key);
+                    }
+                }, 1500);
                 renderColumnTotals(appState.activeTab, { fromUserInput: true });
             });
         return trackSavePromise(p);
@@ -1106,7 +1110,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 scoreValue = null;
             }
 
-            appState.markPendingScore(id, key);
+            appState.markPendingScore?.(id, key);
             appState.updateScoreInMemory(id, appState.loginId, key, scoreValue);
             renderColumnTotals(appState.activeTab, { fromUserInput: true });
             debouncedUpdateScore(id, key, inputEl.value);
@@ -1208,6 +1212,14 @@ document.addEventListener('DOMContentLoaded', () => {
                         badge.className = `text-xs font-bold px-2.5 py-0.5 rounded whitespace-nowrap ${sum === 100 ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`;
                     }
                 }
+            }
+        });
+
+        // 키 입력 직후 합계 즉시 재계산 보강 (input 이벤트 보완)
+        tabContent.addEventListener('keyup', (e) => {
+            if (appState.isArchiveMode()) return;
+            if (e.target.classList && e.target.classList.contains('score-input')) {
+                renderColumnTotals(appState.activeTab, { fromUserInput: true });
             }
         });
 
