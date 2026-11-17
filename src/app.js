@@ -9,6 +9,7 @@ import { appState } from './state/appState.js';
 import { exportToCSV } from './utils/exportCsv.js';
 import { handleScoreTableKeyDown } from './utils/keyboardNav.js';
 import { exportFullDatabaseToJSON, importDatabaseFromJSON } from './utils/backupRestore.js';
+import { exportAwardsBoardToPNG } from './utils/exportAwardsPng.js';
 import { soundEngine } from './utils/soundEffects.js';
 import { showMessage, initModal } from './ui/modal.js';
 import { login, logout } from './services/authService.js';
@@ -38,7 +39,7 @@ import { renderPresentationResults } from './ui/renderers/presentationResults.js
 import { renderLiveVoteStatus } from './ui/renderers/liveVoteStatus.js';
 import { renderDetailedResults } from './ui/renderers/detailedResults.js';
 import { renderVoterDetailedResults } from './ui/renderers/voterDetailedResults.js';
-import { renderFinalResults } from './ui/renderers/finalResults.js';
+import { renderFinalResults, updateFinalAwardsSummaryBoard, broadcastAwardsBoardUpdate } from './ui/renderers/finalResults.js';
 import { renderFinalResultsCharts, downloadChartAsPNG } from './ui/chartManager.js';
 import { renderExcellentPresenters } from './ui/renderers/excellentPresenters.js';
 
@@ -925,6 +926,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     appState.setAwardOverrides(overrides);
                     broadcastCeremonyAction('AWARD_OVERRIDES_UPDATED', { overrides });
                     render();
+                    broadcastAwardsBoardUpdate();
                     showMessage("최종 훈격 및 특별상 지정 내역이 확정 저장되었으며, 종합 결과 및 시상식 무대 화면에 즉시 동기화되었습니다.");
                 } catch (err) {
                     console.error("Save final awards error:", err);
@@ -942,12 +944,38 @@ document.addEventListener('DOMContentLoaded', () => {
                         appState.resetFinalResultsCache();
                         broadcastCeremonyAction('AWARD_OVERRIDES_UPDATED', { overrides: {} });
                         render();
+                        broadcastAwardsBoardUpdate();
                         showMessage("종합점수 순위 기준으로 훈격이 자동 재산정되었습니다.");
                     } catch (err) {
                         console.error("Reset final awards error:", err);
                         showMessage("자동 재산정 초기화 중 오류가 발생했습니다: " + err.message);
                     }
                 });
+            }
+
+            // 최종 결과: 전체 훈격 요약 보드 PNG 그림파일 저장
+            if (e.target.closest('#download-all-awards-png-btn')) {
+                if (appState.finalResultsData) {
+                    exportAwardsBoardToPNG(appState.finalResultsData);
+                }
+            }
+
+            // 최종 결과: 부문별 훈격 요약 보드 PNG 그림파일 저장
+            const catAwardsPngBtn = e.target.closest('.download-category-awards-png-btn');
+            if (catAwardsPngBtn) {
+                const category = catAwardsPngBtn.dataset.category;
+                if (appState.finalResultsData && category) {
+                    exportAwardsBoardToPNG(appState.finalResultsData, { category });
+                }
+            }
+
+            // 최종 결과: 훈격 요약 보드 별도 창(세션)으로 열기
+            if (e.target.closest('#open-awards-board-window-btn')) {
+                window.open(
+                    './awards-board.html',
+                    'FinalAwardsBoardPopout',
+                    'width=1440,height=920,menubar=no,toolbar=no,location=no,status=no,resizable=yes'
+                );
             }
 
             // 설정 저장 버튼
@@ -1075,6 +1103,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     appState.finalResultsData[category][index].id = selectedPresenter.id;
                     appState.finalResultsData[category][index].name = selectedPresenter.name;
                     renderFinalResultsCharts(appState.finalResultsData);
+                    updateFinalAwardsSummaryBoard();
                 }
             }
 
@@ -1104,6 +1133,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const noteEl = tr.querySelector('.final-award-note');
                 if (noteEl) noteEl.textContent = targetItem.awardNote || '';
+                updateFinalAwardsSummaryBoard();
             }
         });
 
@@ -1173,6 +1203,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (totalCell) totalCell.textContent = currentData.totalScore.toFixed(2);
 
                 renderFinalResultsCharts(appState.finalResultsData);
+                updateFinalAwardsSummaryBoard();
             }
         }, true);
     }

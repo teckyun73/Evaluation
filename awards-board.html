@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2026 경영혁신 경진대회 — 부문별 최종 훈격 확정 결과</title>
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <!-- Custom Style -->
+    <link rel="stylesheet" href="./css/style.css?v=20261117_v1">
+
+    <style>
+        @media print {
+            body { background: #ffffff !important; padding: 0 !important; }
+            .no-print { display: none !important; }
+        }
+    </style>
+</head>
+<body class="text-slate-800 antialiased min-h-screen bg-slate-50 flex flex-col justify-between p-4 md:p-8">
+
+    <div class="max-w-7xl mx-auto w-full flex-grow space-y-6">
+        <!-- 상단 배너 & 제어 툴바 -->
+        <header class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 md:p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+                <div class="flex items-center gap-2 mb-1">
+                    <span id="board-year-badge" class="text-xs font-extrabold tracking-widest text-sky-700 bg-sky-50 border border-sky-200 px-3 py-0.5 rounded-full uppercase">
+                        2026 FINAL AWARDS
+                    </span>
+                    <span class="text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        실시간 동기화 중
+                    </span>
+                </div>
+                <h1 id="board-title" class="text-2xl md:text-3xl font-black text-slate-900 mt-1">
+                    2026 경영혁신 경진대회 부문별 최종 훈격 결과
+                </h1>
+                <p class="text-sm text-slate-500 mt-1">
+                    목록 순서: <strong>훈격 / 특별상</strong> &nbsp;|&nbsp; <strong>발표자</strong> &nbsp;|&nbsp; <strong>종합점수</strong> (심사위원 평균 + 임직원 투표 가산점)
+                </p>
+            </div>
+
+            <div class="no-print flex flex-wrap items-center gap-2 flex-shrink-0">
+                <button type="button" id="standalone-download-all-png-btn" class="text-xs md:text-sm font-bold px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-sm transition flex items-center gap-1.5 whitespace-nowrap">
+                    <span>🖼️</span>
+                    <span>전체 훈격표 PNG 저장</span>
+                </button>
+                <button type="button" id="standalone-print-btn" class="text-xs md:text-sm font-semibold px-3.5 py-2.5 bg-slate-700 hover:bg-slate-800 text-white rounded-xl shadow-sm transition whitespace-nowrap">
+                    🖨️ 인쇄
+                </button>
+                <button type="button" id="standalone-fullscreen-btn" class="text-xs md:text-sm font-semibold px-3.5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded-xl transition whitespace-nowrap">
+                    ⛶ 전체화면
+                </button>
+            </div>
+        </header>
+
+        <!-- 별도 세션 본문: 부문별 훈격 요약 카드 -->
+        <main id="awards-board-standalone-root">
+            <div class="text-center text-slate-500 py-20 animate-pulse font-bold text-lg">
+                부문별 최종 훈격 데이터를 불러오는 중입니다...
+            </div>
+        </main>
+    </div>
+
+    <footer class="text-center text-xs text-slate-400 mt-8 border-t border-slate-200 pt-4 max-w-7xl mx-auto w-full">
+        2026 경영혁신 경진대회 평가 시스템 &copy; ATEC
+    </footer>
+
+    <script type="module" src="./src/awardsBoard.js?v=20261117_v1"></script>
+</body>
+</html>
