@@ -60,14 +60,20 @@ function trackSavePromise(promise) {
 
 function debouncedUpdateScore(id, key, value) {
     const mapKey = `${id}:::${key}`;
+    appState.markPendingScore(id, key);
     if (pendingScoreTimers.has(mapKey)) {
         clearTimeout(pendingScoreTimers.get(mapKey).timerId);
     }
     const task = () => {
         pendingScoreTimers.delete(mapKey);
-        const p = updateScore(id, key, value).catch(err => {
-            console.error("Score update failed:", err);
-        });
+        const p = updateScore(id, key, value)
+            .catch(err => {
+                console.error("Score update failed:", err);
+            })
+            .finally(() => {
+                appState.clearPendingScore(id, key);
+                renderColumnTotals(appState.activeTab, { fromUserInput: true });
+            });
         return trackSavePromise(p);
     };
     const timerId = setTimeout(task, 350);
@@ -1018,8 +1024,33 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        // 변경 이벤트 (드롭다운)
+        function handleScoreInputUpdate(inputEl) {
+            if (!inputEl || !inputEl.classList.contains('score-input')) return;
+            const { id, key } = inputEl.dataset;
+            const rawVal = inputEl.value.trim();
+            const max = parseInt(inputEl.max, 10);
+            let scoreValue = rawVal === '' ? null : parseInt(rawVal, 10);
+
+            if (scoreValue !== null && !Number.isNaN(scoreValue)) {
+                if (!Number.isNaN(max) && scoreValue > max) { inputEl.value = max; scoreValue = max; }
+                if (scoreValue < 0) { inputEl.value = 0; scoreValue = 0; }
+            } else {
+                scoreValue = null;
+            }
+
+            appState.markPendingScore(id, key);
+            appState.updateScoreInMemory(id, appState.loginId, key, scoreValue);
+            renderColumnTotals(appState.activeTab, { fromUserInput: true });
+            debouncedUpdateScore(id, key, inputEl.value);
+        }
+
+        // 변경 이벤트 (드롭다운 및 점수 입력 확정)
         tabContent.addEventListener('change', (e) => {
+            if (e.target.classList.contains('score-input')) {
+                if (appState.isArchiveMode()) return;
+                handleScoreInputUpdate(e.target);
+                return;
+            }
             if (e.target.id === 'ceremony-category-select') {
                 appState.setPresentationCategory(e.target.value);
                 broadcastCeremonyAction('SET_CATEGORY', { category: e.target.value });
@@ -1084,19 +1115,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             if (e.target.classList.contains('score-input')) {
-                const { id, key } = e.target.dataset;
-                const value = e.target.value;
-                const max = parseInt(e.target.max, 10);
-                let scoreValue = value === '' ? null : parseInt(value, 10);
-
-                if (scoreValue !== null) {
-                    if (scoreValue > max) { e.target.value = max; scoreValue = max; }
-                    if (scoreValue < 0) { e.target.value = 0; scoreValue = 0; }
-                }
-
-                appState.updateScoreInMemory(id, appState.loginId, key, scoreValue);
-                renderColumnTotals(appState.activeTab);
-                debouncedUpdateScore(id, key, e.target.value);
+                handleScoreInputUpdate(e.target);
             }
 
             if (e.target.classList.contains('evaluator-comment-input')) {
@@ -1120,8 +1139,13 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        // 포커스 아웃 이벤트 (관리자 최종 결과 점수/훈격 수정 반영)
+        // 포커스 아웃 이벤트 (점수 합계 즉시 재검증 및 관리자 최종 결과 점수/훈격 수정 반영)
         tabContent.addEventListener('blur', (e) => {
+            if (e.target.classList && e.target.classList.contains('score-input')) {
+                if (!appState.isArchiveMode()) {
+                    renderColumnTotals(appState.activeTab, { fromUserInput: true });
+                }
+            }
             if (e.target.classList.contains('final-score-cell') ||
                 e.target.classList.contains('final-award-cell') ||
                 e.target.classList.contains('final-vote-score-cell')) {

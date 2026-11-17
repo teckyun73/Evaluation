@@ -249,7 +249,7 @@ export function setupExcellentPresenterListener(callback) {
 }
 
 /**
- * 점수 업데이트
+ * 점수 업데이트 (단일 원자적 merge 저장으로 중간 빈 스냅샷 발생 차단)
  */
 export async function updateScore(presenterId, criterionKey, value) {
     if (!appState.loginId) return;
@@ -259,19 +259,18 @@ export async function updateScore(presenterId, criterionKey, value) {
     const docRef = doc(db, `/artifacts/${getTargetAppId()}/public/data/scores`, presenterId);
 
     try {
-        const scoreVal = value === '' ? null : parseInt(value, 10);
-        const payload = {
-            [`scores.${appState.loginId}.${criterionKey}`]: scoreVal,
-            updatedAt: serverTimestamp()
-        };
+        const parsed = parseInt(value, 10);
+        const scoreVal = (value === '' || value === null || value === undefined || Number.isNaN(parsed)) ? null : parsed;
 
-        const baseData = {
+        await setDoc(docRef, {
             presenterId,
+            scores: {
+                [appState.loginId]: {
+                    [criterionKey]: scoreVal
+                }
+            },
             updatedAt: serverTimestamp()
-        };
-
-        await setDoc(docRef, baseData, { merge: true });
-        await updateDoc(docRef, payload);
+        }, { merge: true });
 
         appState.setSaveStatus('SAVED');
     } catch (error) {
@@ -282,7 +281,7 @@ export async function updateScore(presenterId, criterionKey, value) {
 }
 
 /**
- * 심사평 코멘트 업데이트
+ * 심사평 코멘트 업데이트 (단일 원자적 merge 저장)
  */
 export async function updateComment(presenterId, text) {
     if (!appState.loginId) return;
@@ -292,18 +291,13 @@ export async function updateComment(presenterId, text) {
     const docRef = doc(db, `/artifacts/${getTargetAppId()}/public/data/scores`, presenterId);
 
     try {
-        const payload = {
-            [`comments.${appState.loginId}`]: text.trim(),
-            updatedAt: serverTimestamp()
-        };
-
-        const baseData = {
+        await setDoc(docRef, {
             presenterId,
+            comments: {
+                [appState.loginId]: text.trim()
+            },
             updatedAt: serverTimestamp()
-        };
-
-        await setDoc(docRef, baseData, { merge: true });
-        await updateDoc(docRef, payload);
+        }, { merge: true });
 
         appState.setSaveStatus('SAVED');
     } catch (error) {

@@ -59,7 +59,7 @@ export function renderEvaluationTable(categoryKey) {
         </div>
     `;
 
-    let tableHTML = `<div class="overflow-x-auto rounded-xl border border-slate-200 shadow-xs"><table class="w-full text-sm text-left text-slate-500">`;
+    let tableHTML = `<div class="overflow-x-auto rounded-xl border border-slate-200 shadow-xs"><table data-category="${categoryKey}" class="w-full text-sm text-left text-slate-500">`;
     tableHTML += `<thead class="text-xs text-slate-700 uppercase bg-slate-100"><tr>`;
     tableHTML += `<th scope="col" class="px-5 py-3.5 sticky-col bg-slate-100 min-w-[220px]">평가항목</th>`;
     tableHTML += `<th scope="col" class="px-3 py-3.5 text-center whitespace-nowrap">배점</th>`;
@@ -106,9 +106,10 @@ export function renderEvaluationTable(categoryKey) {
 
     categoryPresenters.forEach(p => {
         const myTotal = criteria.reduce((sum, c) => {
-            return sum + (appState.allScores[p.id]?.scores?.[appState.loginId]?.[c.key] || 0);
+            const val = Number(appState.allScores[p.id]?.scores?.[appState.loginId]?.[c.key]);
+            return sum + (Number.isFinite(val) ? val : 0);
         }, 0);
-        tableHTML += `<td class="${cellPadClass} text-center text-lg text-sky-600 font-extrabold">${myTotal}</td>`;
+        tableHTML += `<td data-my-total-id="${p.id}" class="${cellPadClass} text-center text-lg text-sky-600 font-extrabold">${myTotal}</td>`;
     });
     tableHTML += `</tr>`;
 
@@ -120,12 +121,15 @@ export function renderEvaluationTable(categoryKey) {
             const evaluatorIds = Object.keys(presenterScores).filter(id => !id.startsWith('sim-voter-'));
             if (evaluatorIds.length > 0) {
                 const sumOfScores = evaluatorIds.reduce((total, evalId) => {
-                    return total + criteria.reduce((sum, c) => sum + (presenterScores[evalId]?.[c.key] || 0), 0);
+                    return total + criteria.reduce((sum, c) => {
+                        const val = Number(presenterScores[evalId]?.[c.key]);
+                        return sum + (Number.isFinite(val) ? val : 0);
+                    }, 0);
                 }, 0);
                 totalAverage = (sumOfScores / evaluatorIds.length).toFixed(2);
             }
         }
-        tableHTML += `<td class="${cellPadClass} text-center text-lg text-teal-600 font-extrabold">${totalAverage}</td>`;
+        tableHTML += `<td data-avg-total-id="${p.id}" class="${cellPadClass} text-center text-lg text-teal-600 font-extrabold">${totalAverage}</td>`;
     });
     tableHTML += `</tr>`;
     tableHTML += `</tfoot></table></div>`;
@@ -162,38 +166,60 @@ export function updateAutosaveBadge() {
     }
 }
 
-export function renderColumnTotals(categoryKey) {
+export function renderColumnTotals(categoryKey, options = {}) {
+    const fromUserInput = Boolean(options && options.fromUserInput);
     const tabContent = document.getElementById('tab-content');
-    if (tabContent && appState.loginId) {
-        // 포커스 중이지 않은 점수 입력칸에 Firestore 최신 로드값 동기화 (재로그인 시 즉시 복원)
-        const scoreInputs = tabContent.querySelectorAll('.score-input');
-        scoreInputs.forEach(input => {
-            if (document.activeElement === input) return;
-            const { id, key } = input.dataset;
-            const score = appState.allScores[id]?.scores?.[appState.loginId]?.[key];
-            const myScore = (score === null || score === undefined) ? '' : String(score);
-            if (input.value !== myScore) {
-                input.value = myScore;
-            }
-        });
+    const table = document.querySelector('#tab-content table');
+    if (!table || !table.tfoot) return;
 
-        // 포커스 중이지 않은 심사평 입력칸에 Firestore 최신 로드값 동기화
-        const commentInputs = tabContent.querySelectorAll('.evaluator-comment-input');
-        commentInputs.forEach(textarea => {
-            if (document.activeElement === textarea) return;
-            const presenterId = textarea.dataset.presenterId;
-            const comment = appState.allScores[presenterId]?.comments?.[appState.loginId] || '';
-            if (textarea.value !== comment) {
-                textarea.value = comment;
+    const targetCategory = table.dataset.category || categoryKey || appState.activeTab;
+    const scoreInputs = tabContent ? Array.from(tabContent.querySelectorAll('.score-input')) : [];
+
+    if (tabContent && appState.loginId) {
+        if (!fromUserInput) {
+            // Firestore 원격 로드 시: 포커스 중이거나 로컬 저장 대기 중인 셀은 보호하고, 빈 입력칸에 원격 점수 복원
+            scoreInputs.forEach(input => {
+                if (document.activeElement === input) return;
+                const { id, key } = input.dataset;
+                if (appState.isPendingScore && appState.isPendingScore(id, key)) return;
+
+                const score = appState.allScores[id]?.scores?.[appState.loginId]?.[key];
+                if (score !== null && score !== undefined) {
+                    const myScore = String(score);
+                    if (input.value !== myScore) {
+                        input.value = myScore;
+                    }
+                }
+            });
+
+            // 포커스 중이지 않은 심사평 입력칸에 Firestore 최신 로드값 동기화
+            const commentInputs = tabContent.querySelectorAll('.evaluator-comment-input');
+            commentInputs.forEach(textarea => {
+                if (document.activeElement === textarea) return;
+                const presenterId = textarea.dataset.presenterId;
+                const comment = appState.allScores[presenterId]?.comments?.[appState.loginId] || '';
+                if (comment && textarea.value !== comment) {
+                    textarea.value = comment;
+                }
+            });
+        }
+
+        // 화면 DOM 입력칸에 기입된 최신 점수를 인메모리 상태와 양방향 동기화 (입력 즉시 합계 누락 원천 차단)
+        scoreInputs.forEach(input => {
+            const { id, key } = input.dataset;
+            if (!id || !key) return;
+            const raw = input.value.trim();
+            if (raw !== '') {
+                const parsed = parseInt(raw, 10);
+                if (!Number.isNaN(parsed)) {
+                    appState.updateScoreInMemory(id, appState.loginId, key, parsed);
+                }
             }
         });
     }
 
-    const table = document.querySelector('#tab-content table');
-    if (!table || !table.tfoot) return;
-
-    const criteria = appState.evaluationCriteria[categoryKey] || [];
-    const categoryPresenters = appState.presenters[categoryKey] || [];
+    const criteria = appState.evaluationCriteria[targetCategory] || [];
+    const categoryPresenters = appState.presenters[targetCategory] || [];
 
     const myTotalRow = table.tfoot.rows[0];
     const avgTotalRow = table.tfoot.rows[1];
@@ -201,28 +227,56 @@ export function renderColumnTotals(categoryKey) {
     categoryPresenters.forEach((p, index) => {
         const cellIndex = index + 2;
 
+        // 1. 내 점수 합계: 현재 DOM 입력칸 값을 최우선 합산하고 인메모리 값으로 폴백
+        const presenterInputs = scoreInputs.filter(inp => inp.dataset.id === p.id);
         let myTotal = 0;
-        if (appState.allScores[p.id]?.scores?.[appState.loginId]) {
-            myTotal = criteria.reduce((sum, c) => sum + (appState.allScores[p.id].scores[appState.loginId][c.key] || 0), 0);
-        }
-        if (myTotalRow && myTotalRow.cells[cellIndex]) {
-            myTotalRow.cells[cellIndex].textContent = myTotal;
+
+        if (presenterInputs.length > 0) {
+            myTotal = presenterInputs.reduce((sum, inp) => {
+                const raw = inp.value.trim();
+                if (raw !== '') {
+                    const val = parseInt(raw, 10);
+                    return sum + (Number.isNaN(val) ? 0 : val);
+                }
+                const memVal = Number(appState.allScores[p.id]?.scores?.[appState.loginId]?.[inp.dataset.key]);
+                return sum + (Number.isFinite(memVal) ? memVal : 0);
+            }, 0);
+        } else if (appState.allScores[p.id]?.scores?.[appState.loginId]) {
+            myTotal = criteria.reduce((sum, c) => {
+                const val = Number(appState.allScores[p.id].scores[appState.loginId][c.key]);
+                return sum + (Number.isFinite(val) ? val : 0);
+            }, 0);
         }
 
+        const myTotalCell =
+            table.querySelector(`td[data-my-total-id="${p.id}"]`) ||
+            (myTotalRow && myTotalRow.cells[cellIndex]);
+        if (myTotalCell) {
+            myTotalCell.textContent = myTotal;
+        }
+
+        // 2. 평균 점수: 전체 평가자 점수 평균 실시간 산출
         const presenterScores = appState.allScores[p.id]?.scores;
         let totalAverage = "0.00";
         if (presenterScores) {
             const evaluatorIds = Object.keys(presenterScores).filter(id => !id.startsWith('sim-voter-'));
             if (evaluatorIds.length > 0) {
                 const sumOfScores = evaluatorIds.reduce((total, evalId) => {
-                    const evalTotal = criteria.reduce((sum, c) => sum + (presenterScores[evalId]?.[c.key] || 0), 0);
+                    const evalTotal = criteria.reduce((sum, c) => {
+                        const val = Number(presenterScores[evalId]?.[c.key]);
+                        return sum + (Number.isFinite(val) ? val : 0);
+                    }, 0);
                     return total + evalTotal;
                 }, 0);
                 totalAverage = (sumOfScores / evaluatorIds.length).toFixed(2);
             }
         }
-        if (avgTotalRow && avgTotalRow.cells[cellIndex]) {
-            avgTotalRow.cells[cellIndex].textContent = totalAverage;
+
+        const avgTotalCell =
+            table.querySelector(`td[data-avg-total-id="${p.id}"]`) ||
+            (avgTotalRow && avgTotalRow.cells[cellIndex]);
+        if (avgTotalCell) {
+            avgTotalCell.textContent = totalAverage;
         }
     });
 }

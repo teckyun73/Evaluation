@@ -47,6 +47,7 @@ export const appState = {
     currentUserRole: 'evaluator',
     activeTab: 'support',
     allScores: {},
+    pendingScoreKeys: new Set(), // 평가자가 현재 입력/저장 대기 중인 셀 키("${presenterId}:::${criterionKey}")
     submissionStatus: {},
     allSubmissions: {},
     excellentPresenterSelections: {},
@@ -199,10 +200,44 @@ export const appState = {
         this.notify('ONLINE_STATUS_CHANGED', { online });
     },
 
+    markPendingScore(presenterId, criterionKey) {
+        if (presenterId && criterionKey) {
+            this.pendingScoreKeys.add(`${presenterId}:::${criterionKey}`);
+        }
+    },
+
+    clearPendingScore(presenterId, criterionKey) {
+        if (presenterId && criterionKey) {
+            this.pendingScoreKeys.delete(`${presenterId}:::${criterionKey}`);
+        }
+    },
+
+    isPendingScore(presenterId, criterionKey) {
+        return this.pendingScoreKeys.has(`${presenterId}:::${criterionKey}`);
+    },
+
     setPresenterScoreData(presenterId, data) {
-        this.allScores[presenterId] = data;
+        const incoming = data ? { ...data } : {};
+        const prevMyScores = this.loginId ? this.allScores[presenterId]?.scores?.[this.loginId] : null;
+
+        // 로컬에서 입력 직후 디바운스/네트워크 저장 중인 점수가 이전 스냅샷에 의해 덮어써지지 않도록 보존
+        if (this.loginId && prevMyScores && typeof prevMyScores === 'object') {
+            const mergedScores = { ...(incoming.scores || {}) };
+            const mergedMyScores = { ...(mergedScores[this.loginId] || {}) };
+
+            Object.keys(prevMyScores).forEach(criterionKey => {
+                if (this.isPendingScore(presenterId, criterionKey) || mergedMyScores[criterionKey] === undefined) {
+                    mergedMyScores[criterionKey] = prevMyScores[criterionKey];
+                }
+            });
+
+            mergedScores[this.loginId] = mergedMyScores;
+            incoming.scores = mergedScores;
+        }
+
+        this.allScores[presenterId] = incoming;
         this.finalResultsData = null;
-        this.notify('SCORES_CHANGED', { presenterId, data });
+        this.notify('SCORES_CHANGED', { presenterId, data: incoming });
     },
 
     deletePresenterScoreData(presenterId) {
