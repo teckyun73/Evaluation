@@ -5,7 +5,7 @@
 
 import { EVENT_INFO, CATEGORY_DISPLAY_NAMES, CATEGORY_METADATA, AWARD_SLOTS_2026 } from './config/constants.js';
 import { initializeFirebaseOnce } from './config/firebase.js';
-import { appState } from './state/appState.js?v=20261117_v5';
+import { appState } from './state/appState.js?v=20261117_v6';
 import { exportToCSV } from './utils/exportCsv.js';
 import { handleScoreTableKeyDown } from './utils/keyboardNav.js';
 import { exportFullDatabaseToJSON, importDatabaseFromJSON } from './utils/backupRestore.js';
@@ -26,10 +26,10 @@ import {
     runSimulation,
     resetSimulationData,
     resetAllData
-} from './services/firestoreService.js?v=20261117_v5';
+} from './services/firestoreService.js?v=20261117_v6';
 
 // UI 렌더러 모듈
-import { renderEvaluationTable, renderColumnTotals, updateAutosaveBadge } from './ui/renderers/evaluationTable.js?v=20261117_v5';
+import { renderEvaluationTable, renderColumnTotals, updateAutosaveBadge } from './ui/renderers/evaluationTable.js?v=20261117_v6';
 import { renderAdminDashboard } from './ui/renderers/adminDashboard.js';
 import { renderAdminSettings, handleSaveConfig, handleChangePassword, syncSettingsFormToState } from './ui/renderers/adminSettings.js';
 import { renderAwardCeremony, handleNextReveal, handleResetCeremony, updateCeremonyCards, broadcastCeremonyAction } from './ui/renderers/awardCeremony.js';
@@ -50,7 +50,7 @@ import {
     getSelectedCasinoCard,
     swapCasinoCards,
     moveCasinoCardToZone
-} from './ui/renderers/finalResults.js?v=20261117_v5';
+} from './ui/renderers/finalResults.js?v=20261117_v6';
 import { renderFinalResultsCharts, downloadChartAsPNG } from './ui/chartManager.js';
 import { renderExcellentPresenters } from './ui/renderers/excellentPresenters.js';
 

@@ -5,8 +5,8 @@
  */
 
 import { CATEGORY_DISPLAY_NAMES, CATEGORY_METADATA, CATEGORY_VOTE_RULE_LABELS, SCHEMA_VERSION_2026 } from '../../config/constants.js';
-import { appState } from '../../state/appState.js?v=20261117_v5';
-import { saveRemoteConfig, changeSystemPassword } from '../../services/firestoreService.js?v=20261117_v5';
+import { appState } from '../../state/appState.js?v=20261117_v6';
+import { saveRemoteConfig, changeSystemPassword } from '../../services/firestoreService.js?v=20261117_v6';
 import { showMessage } from '../modal.js';
 
 export function renderAdminSettings() {

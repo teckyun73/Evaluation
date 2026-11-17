@@ -4,8 +4,8 @@
  */
 
 import { CATEGORY_DISPLAY_NAMES } from '../config/constants.js';
-import { appState } from '../state/appState.js?v=20261117_v5';
-import { calculateResults, getUniqueEvaluators, calculateVoteCounts, calculateVoteScores } from './calculator.js?v=20261117_v5';
+import { appState } from '../state/appState.js?v=20261117_v6';
+import { calculateResults, getUniqueEvaluators, calculateVoteCounts, calculateVoteScores } from './calculator.js?v=20261117_v6';
 
 function escapeCsvCell(val) {
     if (val === null || val === undefined) return '';

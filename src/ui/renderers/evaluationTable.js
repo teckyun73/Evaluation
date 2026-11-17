@@ -4,7 +4,7 @@
  */
 
 import { CATEGORY_DISPLAY_NAMES, CATEGORY_METADATA, INTRO_TEXTS } from '../../config/constants.js';
-import { appState } from '../../state/appState.js?v=20261117_v5';
+import { appState } from '../../state/appState.js?v=20261117_v6';
 
 function getAutosaveBadgeHtml() {
     const status = (appState.saveStatus || 'idle').toLowerCase();
@@ -172,7 +172,8 @@ export function renderColumnTotals(categoryKey, options = {}) {
     const table =
         document.getElementById('eval-score-table') ||
         document.querySelector('#tab-content table');
-    if (!table || !table.tfoot) return;
+    const tfoot = table ? (table.tFoot || table.querySelector('tfoot')) : null;
+    if (!table || !tfoot) return;
 
     const targetCategory = table.dataset.category || categoryKey || appState.activeTab;
     const scoreInputs = tabContent
@@ -244,8 +245,8 @@ export function renderColumnTotals(categoryKey, options = {}) {
     const criteria = appState.evaluationCriteria[targetCategory] || [];
     const categoryPresenters = appState.presenters[targetCategory] || [];
 
-    const myTotalRow = table.tfoot.rows[0];
-    const avgTotalRow = table.tfoot.rows[1];
+    const myTotalRow = tfoot.rows[0];
+    const avgTotalRow = tfoot.rows[1];
 
     categoryPresenters.forEach((p, index) => {
         const cellIndex = index + 2;

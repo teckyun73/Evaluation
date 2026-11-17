@@ -4,7 +4,7 @@
  */
 
 import { getDb, doc, getDoc, setDoc, deleteDoc, serverTimestamp, initializeFirebaseOnce, getAppId } from '../config/firebase.js';
-import { appState } from '../state/appState.js?v=20261117_v5';
+import { appState } from '../state/appState.js?v=20261117_v6';
 import { verifyPassword, DEFAULT_ADMIN_HASH, DEFAULT_EVALUATOR_HASH } from '../utils/crypto.js';
 
 // 세션 만료 시간 (30분 = 1800000 ms)

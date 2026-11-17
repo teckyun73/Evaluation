@@ -4,15 +4,15 @@
  */
 
 import { initializeFirebaseOnce } from './config/firebase.js';
-import { appState } from './state/appState.js?v=20261117_v5';
-import { calculateResults } from './utils/calculator.js?v=20261117_v5';
+import { appState } from './state/appState.js?v=20261117_v6';
+import { calculateResults } from './utils/calculator.js?v=20261117_v6';
 import { exportAwardsBoardToPNG } from './utils/exportAwardsPng.js';
 import {
     setupConfigListener,
     setupRealtimeScoresListener,
     setupExcellentPresenterListener
-} from './services/firestoreService.js?v=20261117_v5';
-import { renderFinalAwardsBoardCardsHTML } from './ui/renderers/finalResults.js?v=20261117_v5';
+} from './services/firestoreService.js?v=20261117_v6';
+import { renderFinalAwardsBoardCardsHTML } from './ui/renderers/finalResults.js?v=20261117_v6';
 
 function syncHeaderMeta() {
     const year = appState.eventInfo?.YEAR || appState.currentYear || '2026';

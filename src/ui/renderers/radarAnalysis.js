@@ -4,7 +4,7 @@
  */
 
 import { CATEGORY_DISPLAY_NAMES, CATEGORY_METADATA } from '../../config/constants.js';
-import { appState } from '../../state/appState.js?v=20261117_v5';
+import { appState } from '../../state/appState.js?v=20261117_v6';
 import { renderRadarChart } from '../chartManager.js';
 
 export function renderRadarAnalysis() {

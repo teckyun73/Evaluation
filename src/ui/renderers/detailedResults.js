@@ -4,8 +4,8 @@
  */
 
 import { CATEGORY_DISPLAY_NAMES, INTRO_TEXTS } from '../../config/constants.js';
-import { appState } from '../../state/appState.js?v=20261117_v5';
-import { getUniqueEvaluators } from '../../utils/calculator.js?v=20261117_v5';
+import { appState } from '../../state/appState.js?v=20261117_v6';
+import { getUniqueEvaluators } from '../../utils/calculator.js?v=20261117_v6';
 
 export function renderDetailedResults() {
     const presenters = appState.presenters;
